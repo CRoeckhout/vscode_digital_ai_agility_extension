@@ -1,47 +1,8 @@
 import * as vscode from 'vscode';
-import * as https from 'https';
 import * as fs from 'fs';
-import axios from 'axios';
 import { Member } from './models/member';
-
-export class TicketNode extends vscode.TreeItem {
-    constructor(
-        public readonly label: string,
-        public readonly number: string,
-        public readonly status: string,
-        public readonly project: string,
-        public readonly url: string
-    ) {
-        super(label, vscode.TreeItemCollapsibleState.None);
-        this.tooltip = `${number} • ${status} • ${project}`;
-        this.description = `${status} • ${project}`;
-        this.contextValue = 'ticket';
-        this.iconPath = new vscode.ThemeIcon('ticket');
-
-        this.command = {
-            command: 'agility.openInBrowser',
-            title: 'Open in Agility',
-            arguments: [url]
-        };
-    }
-}
-
-// New status group node
-export class StatusNode extends vscode.TreeItem {
-    constructor(
-        public readonly status: string,
-        public readonly color: string,
-        public readonly tickets: TicketNode[]
-    ) {
-        super(`${status} (${tickets.length})`, vscode.TreeItemCollapsibleState.Collapsed);
-        this.tooltip = `${tickets.length} ticket(s) • ${status}`;
-        this.contextValue = 'status';
-        // set icon to a tiny colored SVG circle (data URI)
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><circle cx="7" cy="7" r="6" fill="${color}"/></svg>`;
-        const uri = vscode.Uri.parse(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`);
-        this.iconPath = uri;
-    }
-}
+import { TicketNode, StatusNode } from './ticketNodes';
+import { createApi, parseAttributes } from './agilityApi';
 
 export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
     private _onDidChangeTreeData = new vscode.EventEmitter<any | undefined | void>();
@@ -133,16 +94,7 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
             this._onDidChangeTreeData.fire(undefined);
 
             try {
-                const certPath = vscode.Uri.joinPath(this.context.globalStorageUri, 'cacerts.pem').fsPath;
-                const ca = fs.existsSync(certPath) ? fs.readFileSync(certPath) : undefined;
-
-                const api = axios.create({
-                    baseURL: `${baseUrl}/rest-1.v1`,
-                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                    httpsAgent: new https.Agent({ ca, rejectUnauthorized: !!ca }),
-                    timeout: 15000
-                });
-
+                const api = await createApi(baseUrl, token, this.context);
                 const response = await api.get('/Data/PrimaryWorkitem', {
                     params: {
                         where: `Owners='Member:${this.selectedMemberId}';Status!='StoryStatus:2999130';Status!='StoryStatus:2999131'`,
@@ -230,15 +182,7 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
 
     private async loadTeamMembers(baseUrl: string, token: string) {
         try {
-            const certPath = vscode.Uri.joinPath(this.context.globalStorageUri, 'cacerts.pem').fsPath;
-            const ca = fs.existsSync(certPath) ? fs.readFileSync(certPath) : undefined;
-
-            const api = axios.create({
-                baseURL: `${baseUrl}/rest-1.v1`,
-                headers: { Authorization: `Bearer ${token}` },
-                httpsAgent: new https.Agent({ ca, rejectUnauthorized: !!ca })
-            });
-
+            const api = await createApi(baseUrl, token, this.context);
             const res = await api.get(`/Data/Member`, {
                 params: { select: 'Name,Username' }
             });
