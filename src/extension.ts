@@ -1,68 +1,54 @@
 import * as vscode from 'vscode';
-import { AgilityTicketProvider, TicketNode } from './ticketProvider';
+import { AgilityTicketProvider } from './ticketProvider';
 
 export function activate(context: vscode.ExtensionContext) {
-	const config = vscode.workspace.getConfiguration('agility');
-	const instanceUrl = config.get<string>('instanceUrl')?.replace(/\/+$/, '');
-	const token = config.get<string>('accessToken');
-	const ticketProvider = new AgilityTicketProvider();
+	const provider = new AgilityTicketProvider(context);
 
-	vscode.window.registerTreeDataProvider('agility', ticketProvider);
+	vscode.window.registerTreeDataProvider('agility', provider);
 
-	// Refresh button
 	context.subscriptions.push(
 		vscode.commands.registerCommand('agility.refresh', () => {
-			ticketProvider.refresh();
-			vscode.window.showInformationMessage('Agility tickets refreshed');
+			provider['tickets'] = []; // force reload
+			provider.refresh();
 		})
 	);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('agility.openInBrowser', (url: string) => {
-			if (url) {
-				vscode.env.openExternal(vscode.Uri.parse(url));
-			}
+			vscode.env.openExternal(vscode.Uri.parse(url));
 		})
 	);
-	// Quick config helper command
+
 	context.subscriptions.push(
 		vscode.commands.registerCommand('agility-helper.configure', async () => {
+			const config = vscode.workspace.getConfiguration('agility');
+
 			const url = await vscode.window.showInputBox({
-				title: "Agility Instance URL",
-				placeHolder: "https://www12.v1host.com/YourCompany",
-				value: instanceUrl,
-				ignoreFocusOut: true
+				title: 'Agility Instance URL',
+				placeHolder: 'https://www12.v1host.com/YourCompany',
+				value: config.get('instanceUrl') as string
 			});
-			if (url) {
-				await config.update('instanceUrl', url.trim(), true);
-			}
+			if (url !== undefined) await config.update('instanceUrl', url?.trim(), true);
 
-			const tok = await vscode.window.showInputBox({
-				title: "Personal Access Token",
+			const token = await vscode.window.showInputBox({
+				title: 'Personal Access Token',
 				password: true,
-				placeHolder: "pat:abc123...",
-				ignoreFocusOut: true
+				placeHolder: 'pat:...'
 			});
-			if (tok) {
-				await config.update('accessToken', tok.trim(), true);
-			}
+			if (token !== undefined) await config.update('accessToken', token?.trim(), true);
 
-			vscode.window.showInformationMessage('Agility configuration saved securely!');
+			if (url || token) {
+				vscode.window.showInformationMessage('Agility configured! Refresh tickets to load.');
+				provider['tickets'] = [];
+				provider.refresh();
+			}
 		})
 	);
 
-	// Later we’ll plug the real API calls here
+	// Bonus command: upload custom cert
 	context.subscriptions.push(
-		vscode.commands.registerCommand('agility-helper.showMyTickets', async () => {
-			if (!instanceUrl || !token) {
-				vscode.window.showWarningMessage('Please configure Agility first', 'Configure')
-					.then(choice => choice === 'Configure' && vscode.commands.executeCommand('agility-helper.configure'));
-				return;
-			}
-
-			vscode.window.showInformationMessage(`Connecting to ${instanceUrl} ...`);
-			// ← here comes your working script later
-		})
+		vscode.commands.registerCommand('agility-helper.uploadCert', () => provider.uploadCustomCert())
 	);
 }
+
 export function deactivate() { }
