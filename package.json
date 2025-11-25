@@ -4,14 +4,26 @@
   "description": "Manage Digital.ai Agility tickets from VS Code",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.106.0"
+    "vscode": "^1.104.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onView:agility-my-tickets"
+  ],
   "main": "./out/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "agility-helper.configure",
+        "title": "Agility: Set Instance & Token"
+      },
+      {
+        "command": "agility-helper.showMyTickets",
+        "title": "Agility: Show My Open Tickets"
+      }
+    ],
     "configuration": {
       "title": "Digital.ai Agility",
       "properties": {
@@ -19,14 +31,13 @@
           "type": "string",
           "default": "",
           "description": "Your Agility instance URL (e.g. https://www12.v1host.com/YourCompany)",
-          "order": 1
+          "pattern": "^https?://.+",
+          "patternErrorMessage": "Must be a valid URL starting with http:// or https://"
         },
         "agility.accessToken": {
           "type": "string",
           "default": "",
-          "description": "Personal Access Token (stored securely)",
-          "order": 2,
-          "markdownDescription": "Create it in Agility → My Profile → Access Tokens"
+          "description": "Personal Access Token (securely stored)"
         }
       }
     }

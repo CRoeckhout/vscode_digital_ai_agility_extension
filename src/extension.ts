@@ -1,26 +1,48 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+	const config = vscode.workspace.getConfiguration('agility');
+	const instanceUrl = config.get<string>('instanceUrl')?.replace(/\/+$/, '');
+	const token = config.get<string>('accessToken');
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "agility-helper" is now active!');
+	// Quick config helper command
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agility-helper.configure', async () => {
+			const url = await vscode.window.showInputBox({
+				title: "Agility Instance URL",
+				placeHolder: "https://www12.v1host.com/YourCompany",
+				value: instanceUrl,
+				ignoreFocusOut: true
+			});
+			if (url) {
+				await config.update('instanceUrl', url.trim(), true);
+			}
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('agility-helper.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from Digital.ai Agility Helper!');
-	});
+			const tok = await vscode.window.showInputBox({
+				title: "Personal Access Token",
+				password: true,
+				placeHolder: "pat:abc123...",
+				ignoreFocusOut: true
+			});
+			if (tok) {
+				await config.update('accessToken', tok.trim(), true);
+			}
 
-	context.subscriptions.push(disposable);
+			vscode.window.showInformationMessage('Agility configuration saved securely!');
+		})
+	);
+
+	// Later we’ll plug the real API calls here
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agility-helper.showMyTickets', async () => {
+			if (!instanceUrl || !token) {
+				vscode.window.showWarningMessage('Please configure Agility first', 'Configure')
+					.then(choice => choice === 'Configure' && vscode.commands.executeCommand('agility-helper.configure'));
+				return;
+			}
+
+			vscode.window.showInformationMessage(`Connecting to ${instanceUrl} ...`);
+			// ← here comes your working script later
+		})
+	);
 }
-
-// This method is called when your extension is deactivated
-export function deactivate() {}
