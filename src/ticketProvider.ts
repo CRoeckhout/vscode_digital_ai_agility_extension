@@ -26,8 +26,25 @@ export class TicketNode extends vscode.TreeItem {
     }
 }
 
-export class AgilityTicketProvider implements vscode.TreeDataProvider<TicketNode> {
-    private _onDidChangeTreeData = new vscode.EventEmitter<TicketNode | undefined | void>();
+// New status group node
+export class StatusNode extends vscode.TreeItem {
+    constructor(
+        public readonly status: string,
+        public readonly color: string,
+        public readonly tickets: TicketNode[]
+    ) {
+        super(`${status} (${tickets.length})`, vscode.TreeItemCollapsibleState.Collapsed);
+        this.tooltip = `${tickets.length} ticket(s) • ${status}`;
+        this.contextValue = 'status';
+        // set icon to a tiny colored SVG circle (data URI)
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><circle cx="7" cy="7" r="6" fill="${color}"/></svg>`;
+        const uri = vscode.Uri.parse(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`);
+        this.iconPath = uri;
+    }
+}
+
+export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
+    private _onDidChangeTreeData = new vscode.EventEmitter<any | undefined | void>();
     onDidChangeTreeData = this._onDidChangeTreeData.event;
 
     private tickets: TicketNode[] = [];
@@ -45,7 +62,7 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<TicketNode
 
     refresh(): void {
         this.tickets = [];
-        this._onDidChangeTreeData.fire();
+        this._onDidChangeTreeData.fire(undefined);
     }
 
     private resetAndRefresh() {
@@ -55,10 +72,18 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<TicketNode
         this.refresh();
     }
 
-    getTreeItem(element: TicketNode): vscode.TreeItem {
+    getTreeItem(element: any): vscode.TreeItem {
         return element;
     }
-    async getChildren(): Promise<any> {
+
+    // Accept an optional element to allow tree expansion for status nodes
+    async getChildren(element?: any): Promise<any[]> {
+        // If asking for children of a status node, return its tickets
+        if (element instanceof StatusNode) {
+            return element.tickets;
+        }
+
+        // Top-level behavior
         if (this.loading) {
             const item = new vscode.TreeItem('Loading...', vscode.TreeItemCollapsibleState.None);
             item.iconPath = new vscode.ThemeIcon('loading~spin');
@@ -105,7 +130,7 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<TicketNode
         // === 2. Load tickets for selected member ===
         if (this.tickets.length === 0) {
             this.loading = true;
-            this._onDidChangeTreeData.fire();
+            this._onDidChangeTreeData.fire(undefined);
 
             try {
                 const certPath = vscode.Uri.joinPath(this.context.globalStorageUri, 'cacerts.pem').fsPath;
@@ -155,7 +180,7 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<TicketNode
                 vscode.window.showErrorMessage(`Agility: ${msg}`);
             } finally {
                 this.loading = false;
-                this._onDidChangeTreeData.fire();
+                this._onDidChangeTreeData.fire(undefined);
             }
         }
 
@@ -171,7 +196,36 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<TicketNode
         };
         header.iconPath = new vscode.ThemeIcon('account');
 
-        return [header, ...this.tickets];
+        // If tickets are not TicketNode instances (error/no tickets message), return them as-is
+        if (this.tickets.length === 0 || !(this.tickets[0] instanceof TicketNode)) {
+            return [header, ...this.tickets];
+        }
+
+        // === 4. Group tickets by status and assign colors ===
+        const statusMap = new Map<string, TicketNode[]>();
+        for (const t of this.tickets as TicketNode[]) {
+            const key = t.status || 'Unknown';
+            if (!statusMap.has(key)) {statusMap.set(key, []);}
+            statusMap.get(key)!.push(t);
+        }
+
+        const colors = [
+            '#1f77b4', // blue
+            '#ff7f0e', // orange
+            '#2ca02c', // green
+            '#d62728', // red
+            '#9467bd', // purple
+            '#8c564b'  // brown
+        ];
+        const unknownColor = '#999999';
+
+        const statuses = Array.from(statusMap.keys()).sort((a, b) => a.localeCompare(b));
+        const statusNodes: StatusNode[] = statuses.map((s, idx) => {
+            const color = s === 'Unknown' ? unknownColor : (colors[idx % colors.length] || unknownColor);
+            return new StatusNode(s, color, statusMap.get(s)!);
+        });
+
+        return [header, ...statusNodes];
     }
 
     private async loadTeamMembers(baseUrl: string, token: string) {
