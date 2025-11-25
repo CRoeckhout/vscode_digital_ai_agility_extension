@@ -8,7 +8,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('agility.refresh', () => {
-			provider['tickets'] = []; // force reload
+			provider['tickets'] = [];
 			provider.refresh();
 		})
 	);
@@ -26,16 +26,18 @@ export function activate(context: vscode.ExtensionContext) {
 			const url = await vscode.window.showInputBox({
 				title: 'Agility Instance URL',
 				placeHolder: 'https://www12.v1host.com/YourCompany',
+				ignoreFocusOut: true,
 				value: config.get('instanceUrl') as string
 			});
-			if (url !== undefined) await config.update('instanceUrl', url?.trim(), true);
+			if (url !== undefined) { await config.update('instanceUrl', url?.trim(), true); }
 
 			const token = await vscode.window.showInputBox({
 				title: 'Personal Access Token',
 				password: true,
+				ignoreFocusOut: true,
 				placeHolder: 'pat:...'
 			});
-			if (token !== undefined) await config.update('accessToken', token?.trim(), true);
+			if (token !== undefined) { await config.update('accessToken', token?.trim(), true); }
 
 			if (url || token) {
 				vscode.window.showInformationMessage('Agility configured! Refresh tickets to load.');
@@ -45,9 +47,14 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	);
 
-	// Bonus command: upload custom cert
 	context.subscriptions.push(
 		vscode.commands.registerCommand('agility-helper.uploadCert', () => provider.uploadCustomCert())
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agility.changeMember', () => {
+			provider.changeMember();
+		})
 	);
 }
 

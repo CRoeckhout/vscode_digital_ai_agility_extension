@@ -1,0 +1,824 @@
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>VersionOne Data Application Programming Interface (API)</title><link rel="stylesheet" href="v1api.css" type="text/css" /><meta name="generator" content="DocBook XSL Stylesheets V1.70.1" /></head><body><div class="article" lang="en" xml:lang="en"><div class="titlepage"><div><div><h1 class="title"><a id="id565256"></a>VersionOne Data Application Programming Interface (API)</h1></div></div><hr /></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="section"><a href="#intro">Introduction</a></span></dt><dt><span class="section"><a href="#infomodel">The VersionOne Information Model</a></span></dt><dt><span class="section"><a href="#lbe.query">Learn By Example: Queries</a></span></dt><dd><dl><dt><span class="section"><a href="#query.data.asset">How to query a single asset</a></span></dt><dt><span class="section"><a href="#query.data.sel.single">How to query for different attributes</a></span></dt><dt><span class="section"><a href="#query.data.att">How to query the value of a single attribute</a></span></dt><dt><span class="section"><a href="#query.assets">How to get a list of all Story assets</a></span></dt><dt><span class="section"><a href="#query.data.sel.multi">How to query specific attributes for a list of Story assets</a></span></dt><dt><span class="section"><a href="#query.data.where">How to filter a query</a></span></dt><dt><span class="section"><a href="#query.data.sort">How to sort a query</a></span></dt><dt><span class="section"><a href="#query.data.page">How to select a portion of query results</a></span></dt><dt><span class="section"><a href="#query.data.find">How to search text attributes</a></span></dt><dt><span class="section"><a href="#query.hist.asset">How to query the history of a single asset</a></span></dt><dt><span class="section"><a href="#query.hist.att">How to query the history of a single attribute</a></span></dt><dt><span class="section"><a href="#query.hist.assets">How to query the history of many assets</a></span></dt><dt><span class="section"><a href="#query.hist.asof">How to query an asset "as of" a specific time</a></span></dt></dl></dd><dt><span class="section"><a href="#lbe.update">Learn By Example: Updates</a></span></dt><dd><dl><dt><span class="section"><a href="#lbe.update.simple">How to update a scalar attribute on an asset</a></span></dt><dt><span class="section"><a href="#lbe.update.relation">How to update a single-value relation on an asset</a></span></dt><dt><span class="section"><a href="#lbe.update.multi">How to add and remove values from a multi-value relation</a></span></dt><dt><span class="section"><a href="#lbe.update.new">How to create a new asset</a></span></dt></dl></dd><dt><span class="section"><a href="#lbe.newasset">Learn By Example: New Asset Templates</a></span></dt><dd><dl><dt><span class="section"><a href="#lbe.newasset.storyfromscope">How to get a new Story asset template in the context of a Scope asset</a></span></dt><dt><span class="section"><a href="#lbe.newasset.storyfromrequest">How to get a new Story asset in the context of a Request asset</a></span></dt></dl></dd><dt><span class="section"><a href="#lbe.operations">Learn By Example: Operations</a></span></dt><dd><dl><dt><span class="section"><a href="#lbe.operations.delete">How to delete a Story asset</a></span></dt><dt><span class="section"><a href="#lbe.operations.close">How to close a Story asset</a></span></dt><dt><span class="section"><a href="#lbe.operations.reactivate">How to reopen a Story asset</a></span></dt><dt><span class="section"><a href="#lbe.operations.activate">How to activate a Timebox asset</a></span></dt></dl></dd><dt><span class="section"><a href="#security">Security</a></span></dt><dt><span class="section"><a href="#errors">Errors</a></span></dt><dd><dl><dt><span class="section"><a href="#error.codes">Common Error Status Codes</a></span></dt></dl></dd><dt><span class="section"><a href="#section.xmldescription">XML Response</a></span></dt><dd><dl><dt><span class="section"><a href="#xmldesc.query">Query Responses</a></span></dt><dt><span class="section"><a href="#xmldesc.update">Update Responses</a></span></dt><dt><span class="section"><a href="#xmldesc.newasset">New Responses</a></span></dt><dt><span class="section"><a href="#xmldesc.operation">Operation Responses</a></span></dt></dl></dd><dt><span class="section"><a href="#ref.syntax">Syntax Reference</a></span></dt><dd><dl><dt><span class="section"><a href="#section.query.syntax">Query Syntax</a></span></dt><dt><span class="section"><a href="#section.attribute.syntax">Attribute Syntax</a></span></dt><dt><span class="section"><a href="#section.attributeselection.syntax">Attribute Selection Syntax</a></span></dt><dt><span class="section"><a href="#section.filter.syntax">Filter Syntax</a></span></dt><dt><span class="section"><a href="#section.orderby.syntax">Order By Syntax</a></span></dt><dt><span class="section"><a href="#section.paging.syntax">Paging Syntax</a></span></dt></dl></dd><dt><span class="section"><a href="#section.footer"></a></span></dt></dl></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="intro"></a>Introduction</h2></div></div></div><p>
+			The VersionOne Data API allows programmatic access to the information stored in your VersionOne system.
+			Through the Data API, you can query for simple or complex sets of information, update the information, and execute system-defined operations.
+		</p><p>
+			Simple queries can request the value of a single attribute on a single asset, or multiple attributes on a single asset.
+			Complex queries can request multiple assets meeting a certain criteria, have the results sorted in a particular way, and even ask for a portion (a "page") of the overall results.
+		</p><p>
+			Using the VersionOne Data API involves sending HTTP requests to specific URLs.  
+			GET requests are used to query information, and receive an XML response.
+			POST requests are used to update information, and include an XML payload to describe the update.
+			POST requests are also used to execute operations, which change data in ways that cannot be accomplished with a simple update (such as re-opening a closed Story).
+		</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="infomodel"></a>The VersionOne Information Model</h2></div></div></div><div class="sidebar"><a id="hist.explanation"></a><p class="title"><b>History in VersionOne</b></p><p>
+				In a more general sense, history is made up of events that occur at specific times or moments.  Consider running into an old friend at exactly 9:32 PM.
+				At that exact moment an event occured, you and an old friend met.  In the VersionOne system every change to every asset is an event,
+				which causes a specific moment to be recorded in the VersionOne history.
+			</p><p>
+				For example changing a Story asset then changing a Scope asset would occur at two different times or moments.  
+				When a specific asset changes its own individual history is marked as changing as part of that moment.  So for 
+				example, you create a brand new Story asset, it may get marked with moment number 203. If you then update the Story To Do attribute, 
+				the Story will be marked as having changed at moment number 204. If someone else then updates a Member Name attribute, the Member will be 
+				marked with moment number 205.  Moment numbers are sequential, but are mantained globally for the entire VersionOne system.  The next 
+				global change in the system will be marked with moment 206.
+			</p><p>
+				In the above example the Story history will have been marked with two distinct moment numbers.  The first being moment number 203, the moment the asset
+				was created and the second being when the To Do attribute was changed, at moment number 204. As mentioned above moment numbers are not sequential
+				for a specific asset, they are sequential for the entire VersionOne system.  Between the time you created the Story asset and the time you changed its To Do attribute,
+				another user may have changed an entirely different asset in the VersionOne system, thus making a gap in between your Story asset's moments. 
+			</p></div><p>
+			Practically all data in VersionOne is stored in the form of assets, which have attributes.  
+			Each asset is classified by an asset type, which describes a number of attribute definitions, operations, rules, and possibly an inheritance from another asset type.
+		</p><p><a id="infomodel.assettype"></a><b>Asset Type. </b>
+				Asset types describe the "classes" of business data available.
+				Asset types form an inheritance hierarchy, such that each asset type inherits attribute definitions, operations, and rules from its "parent" asset type.
+				Those asset types at the leaves of this hierarchy are <span class="emphasis"><em>concrete</em></span>, whereas asset types with "children" asset types are <span class="emphasis"><em>abstract</em></span>.
+				Assets are all instances of concrete asset types.
+				Asset types are identified by unique names.
+			</p><p>
+			By way of example, Story and Defect are concrete asset types.
+			On the other hand, Workitem is an abstract asset type, from which Story and Defect ultimately derive.
+		</p><p><a id="infomodel.attribdef"></a><b>Attribute Definition. </b>
+				Attribute definitions describe the properties that "make up" each asset type.
+				An attribute definition defines the type of its value, whether it is required and/or read-only, and many other qualities.
+				Attribute definitions are identified by a name that is unique within its asset type.
+			</p><p>
+			Attribute definitions are defined as either scalars or relations to other assets.
+			Further, relation attribute definitions can be either single-value or multi-value.
+			For example, the Estimate attribute definition on the Workitem asset type is a scalar (specifically, a floating-point number).
+			On the other hand, the Workitem asset type's Scope attribute definition is a single-value relation (to a Scope asset).
+			The reverse relation, Workitems on the Scope asset type, is a multi-value relation (to Workitem assets).
+		</p><p><a id="infomodel.asset"></a><b>Asset. </b>
+				Actual business objects in VersionOne are assets, which are instances of concrete asset types.
+				Each asset is uniquely identified by it's asset type and ID (an integer).
+				For example, <span class="emphasis"><em>Member:20</em></span> identifies the Member asset with ID of 20.
+			</p><p><a id="infomodel.attribute"></a><b>Attribute. </b>
+				On every asset are a number of attributes, which attach specific values to the attribute definitions defined in the asset type.
+				If the attribute's definition is a relation, then the value(s) of the attribute are references to an asset(s).
+			</p><p><a id="infomodel.history"></a><b>Moment. </b>
+				As data changes in VersionOne, a history is maintained.
+				Every change to every asset is journaled within the system, and assigned a chronologically-increasing integer called a <span class="emphasis"><em>moment</em></span>.
+				A past version of an asset is uniquely identified by it's asset type, ID, and Moment.
+				A past version of a relation attribute will refer to the past version of it's target asset.
+				For example, <span class="emphasis"><em>Member:20:563</em></span> identifies the Member asset with ID of 20, as it was at the time of moment 563.
+			</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="lbe.query"></a>Learn By Example: Queries</h2></div></div></div><p>
+			This section is a series of examples, starting with simpler queries and moving to more advanced queries.	 
+			Any of these examples are viewable directly in a web browser capable of displaying XML data.
+		</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="query.data.asset"></a>How to query a single asset</h3></div></div></div><p>This URL will retrieve the Member with ID 20, with a set of common attributes:</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Member/20</code>
+			</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/Data/Member/20" id="Member:20"&gt;
+	&lt;Attribute name="AssetState"&gt;64&lt;/Attribute&gt; 
+	&lt;Attribute name="DefaultRole.Name"&gt;System Admin&lt;/Attribute&gt; 
+	&lt;Attribute name="Username"&gt;admin&lt;/Attribute&gt; 
+	&lt;Attribute name="IsLoginDisabled"&gt;false&lt;/Attribute&gt; 
+	&lt;Relation name="DefaultRole"&gt;
+		&lt;Asset href="/v1.six/rest-1.v1/Data/Role/1" idref="Role:1" /&gt; 
+	&lt;/Relation&gt;
+	&lt;Attribute name="Name"&gt;Administrator&lt;/Attribute&gt; 
+	&lt;Attribute name="Phone" /&gt; 
+	&lt;Attribute name="AssetType"&gt;Member&lt;/Attribute&gt; 
+	&lt;Attribute name="Description" /&gt; 
+	&lt;Attribute name="Nickname"&gt;Admin&lt;/Attribute&gt; 
+	&lt;Attribute name="Email"&gt;admin@demo.com&lt;/Attribute&gt; 
+&lt;/Asset&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id565390"></a>Remarks</h4></div></div></div><p>
+					The XML returned will start with a root node called "Asset" which indicates the results are for a single asset not a list of assets.  
+					The "Asset" node also contains an "href" attribute, which corresponds to the full URL used to retrieve this asset, 
+					as well as an "id" attribute which contains the internal VersionOne ID of the specific asset.
+				</p><p>
+					The child nodes of an "Asset" node are a mixture of "Attribute" and "Relation" nodes.  Both types of nodes contain a "name" attribute
+					which tells you what Attribute the value corresponds to.  While "Attribute" nodes contain their value, a "Relation" node
+					contains an "Asset" sub node that describes the related asset.  Note how the "Asset" sub node contains an "href" attribute 
+					like the root "Asset" node but contains an "idref" attribute instead of an "id" attribute. 
+				</p><p>
+					All assets reside at URLs of the same format; "Member" and "20" can be replaced with any asset's type and ID.
+					If no such asset exists, or if you do not have sufficient rights to view it, then the response will be <a href="#error.404">404 Not Found</a>.
+				</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="query.data.sel.single"></a>How to query for different attributes</h3></div></div></div><p>Retrieve attributes other than the default set by using the <a href="#query.params" title="Table&#xA0;2.&#xA0;Query String Parameters"><span class="emphasis"><em>sel</em></span> query parameter</a>.</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Member/20?sel=Name,Email</code>
+			</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/Data/Member/20" id="Member:20"&gt;
+	&lt;Attribute name="Email"&gt;admin@demo.com&lt;/Attribute&gt; 
+	&lt;Attribute name="Name"&gt;Administrator&lt;/Attribute&gt; 
+&lt;/Asset&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id565480"></a>Remarks</h4></div></div></div><p>The response contains only those attributes specified.</p><div class="tip" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Best Practice</h3><p>Whenever possible, use the <span class="emphasis"><em>sel</em></span> query parameter to choose specific attributes, thereby reducing the load put on the API.</p></div></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="query.data.att"></a>How to query the value of a single attribute</h3></div></div></div><p>Just as each asset resides at its own URL, so does each attribute.  This URL retrieves the Name attribute on Member 20:</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Member/20/Name</code>
+			</p><pre class="programlisting">&lt;Attribute name="Name" href="/VersionOne/rest-1.v1/Data/Member/20/Name" of="/VersionOne/rest-1.v1/Data/Member/20"&gt;Administrator&lt;/Attribute&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id575436"></a>Remarks</h4></div></div></div><p>
+					The XML returned will start with a root node called "Attribute" or "Relation" which indicates the results are for a single attribute on a single asset.  
+					The root node also contains a "name" attribute, which identifies the attribute the value corresponds to, 
+					an "href" attribute, which corresponds to the full URL used to retrieve this attribute, 
+					as well as an "of" attribute which corresponds to the full URL used to retrieve the asset this attribute belongs to.
+				</p><p>
+					If the root node is "Attribute" the scalar value will be in a Text node inside the root node.  
+					If the root node is "Relation" there may be one or more "Asset" nodes which are references to the assets the asset relates to. 
+				</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="query.assets"></a>How to get a list of all Story assets</h3></div></div></div><p>This URL will retrieve all Story assets (that you have rights to see):</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Story</code>
+			</p><pre class="programlisting">&lt;Assets total="10" pageSize="2147483647" pageStart="0"&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1021" id="Story:1021"&gt;
+		&lt;Attribute name="Name"&gt;Logon&lt;/Attribute&gt;
+		&lt;Relation name="Status"&gt;
+			&lt;Asset href="/VersionOne/rest-1.v1/Data/StoryStatus/137" idref="StoryStatus:137" /&gt;
+		&lt;/Relation&gt;
+		&lt;Relation name="Timebox"&gt;
+			&lt;Asset href="/VersionOne/rest-1.v1/Data/Timebox/1022" idref="Timebox:1022" /&gt;
+		&lt;/Relation&gt;
+		&lt;Attribute name="DetailEstimate" /&gt;
+		&lt;Attribute name="AssetType"&gt;Story&lt;/Attribute&gt;
+		&lt;Attribute name="AssetState"&gt;128&lt;/Attribute&gt;
+		&lt;Attribute name="Number"&gt;S-01001&lt;/Attribute&gt;
+		&lt;Attribute name="ToDo" /&gt;
+		&lt;Attribute name="Order"&gt;32&lt;/Attribute&gt;
+		&lt;Relation name="Parent"&gt;
+			&lt;Asset href="/VersionOne/rest-1.v1/Data/Theme/1015" idref="Theme:1015" /&gt;
+		&lt;/Relation&gt;
+		&lt;Attribute name="Description" /&gt;
+		&lt;Attribute name="Estimate"&gt;2&lt;/Attribute&gt;
+		&lt;Relation name="Priority"&gt;
+			&lt;Asset href="/VersionOne/rest-1.v1/Data/WorkitemPriority/140" idref="WorkitemPriority:140" /&gt;
+		&lt;/Relation&gt;
+		&lt;Relation name="Scope"&gt;
+			&lt;Asset href="/VersionOne/rest-1.v1/Data/Scope/1010" idref="Scope:1010" /&gt;
+		&lt;/Relation&gt;
+		&lt;Relation name="Owners"&gt;
+			&lt;Asset href="/VersionOne/rest-1.v1/Data/Member/1000" idref="Member:1000" /&gt;
+		&lt;/Relation&gt;
+	&lt;/Asset&gt;
+	&lt;!-- Additional Asset Nodes --&gt;
+&lt;/Assets&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id575457"></a>Remarks</h4></div></div></div><p>Depending on your security role, you may not be able to see all the Story assets in the entire system.</p><p>
+					The XML returned will start with a root node called "Assets" which indicates the results are list of assets.  
+					The "Assets" node also contains a "total" attribute, which tells you how many total items are available if paging is not used, 
+					as well as "pageStart" and "pageSize" attributes which indicate where in the given query the items belong.
+					See the <a href="#section.paging.syntax" title="Paging Syntax">Paging Syntax</a> for more information on paging queries.
+				</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="query.data.sel.multi"></a>How to query specific attributes for a list of Story assets</h3></div></div></div><p>Use the <a href="#query.params" title="Table&#xA0;2.&#xA0;Query String Parameters"><span class="emphasis"><em>sel</em></span> query parameter</a> to retrieve attributes other than the default set.</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Story?sel=Name,DetailEstimate</code>
+			</p><pre class="programlisting">&lt;Assets total="10" pageSize="2147483647" pageStart="0"&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1364" id="Story:1364"&gt;
+		&lt;Attribute name="Name"&gt;Company History&lt;/Attribute&gt; 
+		&lt;Attribute name="DetailEstimate"&gt;0&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1616" id="Story:1616"&gt;
+		&lt;Attribute name="Name"&gt;Credit Check 1&lt;/Attribute&gt; 
+		&lt;Attribute name="DetailEstimate" /&gt; 
+	&lt;/Asset&gt;
+	&lt;!-- Additional Asset Nodes --&gt;
+&lt;/Assets&gt;</pre></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="query.data.where"></a>How to filter a query</h3></div></div></div><p>Filter a query by using the <a href="#query.params" title="Table&#xA0;2.&#xA0;Query String Parameters"><span class="emphasis"><em>where</em></span> query parameter</a>.  This URL will retrieve only Story assets with a To Do of zero:</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Story?sel=Name,ToDo&amp;where=ToDo='0'</code>
+			</p><pre class="programlisting">&lt;Assets total="2" pageSize="2147483647" pageStart="0"&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1303" id="Story:1303"&gt;
+		&lt;Attribute name="Name"&gt;Home Page&lt;/Attribute&gt; 
+		&lt;Attribute name="ToDo"&gt;0&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1339" id="Story:1339"&gt;
+		&lt;Attribute name="Name"&gt;Contact Us&lt;/Attribute&gt; 
+		&lt;Attribute name="ToDo"&gt;0&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+&lt;/Assets&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id575548"></a>Remarks</h4></div></div></div><p>
+					The number 0 in the <span class="emphasis"><em>where</em></span> query parameter is surrounded by single-quote marks.
+				</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="query.data.sort"></a>How to sort a query</h3></div></div></div><p>Sort a query by using the <a href="#query.params" title="Table&#xA0;2.&#xA0;Query String Parameters"><span class="emphasis"><em>sort</em></span> query parameter</a>. This URL will retrieve Story assets sorted by increasing Estimate:</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Story?sel=Name,Estimate&amp;sort=Estimate</code>
+			</p><pre class="programlisting">&lt;Assets total="10" pageSize="2147483647" pageStart="0"&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1068" id="Story:1068"&gt;
+		&lt;Attribute name="Name"&gt;Ticket 3432&lt;/Attribute&gt; 
+		&lt;Attribute name="Estimate"&gt;1&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1067" id="Story:1067"&gt;
+		&lt;Attribute name="Name"&gt;Ticket 3431&lt;/Attribute&gt; 
+		&lt;Attribute name="Estimate"&gt;2&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1845" id="Story:1845"&gt;
+		&lt;Attribute name="Name"&gt;Shipping Lanes - Freight&lt;/Attribute&gt; 
+		&lt;Attribute name="Estimate"&gt;3&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;!-- Additional Asset Nodes --&gt;
+&lt;/Assets&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id575608"></a>Remarks</h4></div></div></div><p>To sort in descending order prepend the attribute name with a minus sign: <code class="uri">sort=-Estimate</code>.</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="query.data.page"></a>How to select a portion of query results</h3></div></div></div><p>Retrieve a "page" of query results by using the <a href="#query.params" title="Table&#xA0;2.&#xA0;Query String Parameters"><span class="emphasis"><em>page</em></span> query parameter</a>. This URL will retrieve the first 5 Story assets:</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Story?sel=Name&amp;page=5,0</code>
+			</p><pre class="programlisting">&lt;Assets total="10" pageSize="5" pageStart="0"&gt;
+	&lt;Asset href="/v1.six/rest-1.v1/Data/Story/1021" id="Story:1021"&gt;
+		&lt;Attribute name="Name"&gt;Logon&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="/v1.six/rest-1.v1/Data/Story/1064" id="Story:1064"&gt;
+		&lt;Attribute name="Name"&gt;Ticket 3428&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="/v1.six/rest-1.v1/Data/Story/1065" id="Story:1065"&gt;
+		&lt;Attribute name="Name"&gt;Ticket 3429&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="/v1.six/rest-1.v1/Data/Story/1066" id="Story:1066"&gt;
+		&lt;Attribute name="Name"&gt;Ticket 3430&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="/v1.six/rest-1.v1/Data/Story/1067" id="Story:1067"&gt;
+		&lt;Attribute name="Name"&gt;Ticket 3431&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+&lt;/Assets&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id575662"></a>Remarks</h4></div></div></div><p>The <span class="emphasis"><em>page</em></span> query parameter shown asks for 5 items, starting at position 0.  The next 5 items can be retrieve with <code class="uri">page=5,5</code>.</p><p>The <span class="emphasis"><em>pageSize</em></span> and <span class="emphasis"><em>pageStart</em></span> attributes reflect the requested page, and the <span class="emphasis"><em>total</em></span> attribute indicates how many assets satisfied the query in total.</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="query.data.find"></a>How to search text attributes</h3></div></div></div><p>
+				Search for a string in text attributes by using the <a href="#query.params" title="Table&#xA0;2.&#xA0;Query String Parameters"><span class="emphasis"><em>find</em></span> and <span class="emphasis"><em>findin</em></span> query parameters</a>.
+				This URL will retrieve all Story assets whose Name attribute contains the word <em class="wordasword">Ticket</em>.
+			</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Story?sel=Name&amp;find=Ticket&amp;findin=Name</code>
+			</p><pre class="programlisting">&lt;Assets total="3" pageSize="2147483647" pageStart="0"&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1065" id="Story:1065"&gt;
+		&lt;Attribute name="Name"&gt;Ticket 3429&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1530" id="Story:1530"&gt;
+		&lt;Attribute name="Name"&gt;Ticket 3449&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1518" id="Story:1518"&gt;
+		&lt;Attribute name="Name"&gt;Ticket 3439&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+&lt;/Assets&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id575723"></a>Remarks</h4></div></div></div><p>
+					The <span class="emphasis"><em>findin</em></span> query parameter is optional; if omitted, a base set of attributes will be searched.
+					On the other hand, the <span class="emphasis"><em>findin</em></span> query parameter may contain multiple text attributes as a comma-delimited list: <code class="uri">findin=Name,Description,Reference</code>.</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="query.hist.asset"></a>How to query the history of a single asset</h3></div></div></div><p>This URL will retrieve the history of the Member asset with ID 20.</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Hist/Member/20</code>
+			</p><pre class="programlisting">&lt;History total="2" pageSize="2147483647" pageStart="0"&gt;
+	&lt;Asset href="VersionOne/rest-1.v1/Data/Member/20/0" id="Member:20:0"&gt;
+		&lt;Attribute name="Description" /&gt; 
+		&lt;Attribute name="Nickname"&gt;Admin&lt;/Attribute&gt; 
+		&lt;Attribute name="Email" /&gt; 
+		&lt;Attribute name="AssetState"&gt;64&lt;/Attribute&gt; 
+		&lt;Attribute name="DefaultRole.Name"&gt;System Admin&lt;/Attribute&gt; 
+		&lt;Attribute name="Username"&gt;admin&lt;/Attribute&gt; 
+		&lt;Attribute name="IsLoginDisabled"&gt;false&lt;/Attribute&gt; 
+		&lt;Relation name="DefaultRole"&gt;
+			&lt;Asset href="VersionOne/rest-1.v1/Data/Role/1" idref="Role:1" /&gt; 
+		&lt;/Relation&gt;
+		&lt;Attribute name="Name"&gt;Administrator&lt;/Attribute&gt; 
+		&lt;Attribute name="Phone" /&gt; 
+		&lt;Attribute name="AssetType"&gt;Member&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="VersionOne/rest-1.v1/Data/Member/20/113" id="Member:20:113"&gt;
+		&lt;Attribute name="Description" /&gt; 
+		&lt;Attribute name="Nickname"&gt;Admin&lt;/Attribute&gt; 
+		&lt;Attribute name="Email"&gt;admin@demo.com&lt;/Attribute&gt; 
+		&lt;Attribute name="AssetState"&gt;64&lt;/Attribute&gt; 
+		&lt;Attribute name="DefaultRole.Name"&gt;System Admin&lt;/Attribute&gt; 
+		&lt;Attribute name="Username"&gt;admin&lt;/Attribute&gt; 
+		&lt;Attribute name="IsLoginDisabled"&gt;false&lt;/Attribute&gt; 
+		&lt;Relation name="DefaultRole"&gt;
+			&lt;Asset href="VersionOne/rest-1.v1/Data/Role/1" idref="Role:1" /&gt; 
+		&lt;/Relation&gt;
+		&lt;Attribute name="Name"&gt;Administrator&lt;/Attribute&gt; 
+		&lt;Attribute name="Phone"&gt;555-555-1212&lt;/Attribute&gt;
+		&lt;Attribute name="AssetType"&gt;Member&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+&lt;/History&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id575767"></a>Remarks</h4></div></div></div><p>
+					This example queries from the <span class="emphasis"><em>Hist</em></span> namespace, instead of the <span class="emphasis"><em>Data</em></span> namespace.
+					It responds with 2 historical versions of the same asset.
+					The differences between the two historical assets may be difficult to spot—both the Email attribute and the Phone attribute changed.
+				</p><p>
+					The root node is named "History" to indicate you are viewing a historical result.
+					The "href" attribute on each "Asset" node contains a moment after the asset type and ID portions of the path.
+					That URL provides the path to the exact version of that specific asset, as it was at that moment. 
+				</p><p>
+					Note how the first asset can be retrieved using moment number 0, while the second can be retrieved using moment number 113.
+					This indicates that over 100 changes occured to other assets in the system before someone changed this Member asset.
+				</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="query.hist.att"></a>How to query the history of a single attribute</h3></div></div></div><p>This URL will retrieve the history of changes to the Email attribute of the Member asset with ID 20:</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Hist/Member/20/Email</code>
+			</p><pre class="programlisting">&lt;History total="2" pageSize="2147483647" pageStart="0"&gt;
+	&lt;Attribute name="Email" href="/VersionOne/rest-1.v1/Data/Member/20/0/Email" of="/VersionOne/rest-1.v1/Data/Member/20/0" /&gt; 
+	&lt;Attribute name="Email" href="/VersionOne/rest-1.v1/Data/Member/20/113/Email" of="/VersionOne/rest-1.v1/Data/Member/20/113"&gt;admin@demo.com&lt;/Attribute&gt; 
+&lt;/History&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id575856"></a>Remarks</h4></div></div></div><p>
+					The root "History" node contains child nodes named "Attribute", indicating this is a historical query for a single attribute.  
+					As with normal attribute queries, the "Attribute" node contains a "name" attribute which identifies the name of the attribute on the asset,
+					an "href" attribute which points to the specific attribute, and finally an "of" attribute which points to the asset the attribute is on.  
+					Note how both the "of" and "href" attributes contain a URL with a moment number.
+				</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="query.hist.assets"></a>How to query the history of many assets</h3></div></div></div><p>This URL will retrieve history for all Story assets you are able to see:</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Hist/Story?sel=Name,ToDo,ChangeDate</code>
+			</p><pre class="programlisting">&lt;History total="203" pageSize="2147483647" pageStart="0"&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1364/818" id="Story:1364:818"&gt;
+		&lt;Attribute name="Name"&gt;Company History&lt;/Attribute&gt; 
+		&lt;Attribute name="ToDo"&gt;40&lt;/Attribute&gt;
+		&lt;Attribute name="ChangeDate"&gt;2005-08-01T12:28:35.577&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1364/818" id="Story:1364:874"&gt;
+		&lt;Attribute name="Name"&gt;Company History&lt;/Attribute&gt; 
+		&lt;Attribute name="ToDo"&gt;20&lt;/Attribute&gt;
+		&lt;Attribute name="ChangeDate"&gt;2005-08-02T11:05:12.123&lt;/Attribute&gt;
+	&lt;/Asset&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1364/903" id="Story:1364:903"&gt;
+		&lt;Attribute name="Name"&gt;Company History&lt;/Attribute&gt; 
+		&lt;Attribute name="ToDo"&gt;0&lt;/Attribute&gt;
+		&lt;Attribute name="ChangeDate"&gt;2005-08-03T13:09:05.983&lt;/Attribute&gt;					
+	&lt;/Asset&gt;
+	&lt;!-- Additional Asset Nodes --&gt;
+&lt;/History&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id575887"></a>Remarks</h4></div></div></div><p>
+					Again, the response is a list of historical assets.
+					Note how each "Asset" has an "href" attribute with a moment number.
+				</p><p>
+					One of the attributes requested in this example is the ChangeDate attribute.  
+					This attribute is maintained by history and it indicates the exact time this change occurred.
+				</p><p>All of the previously demonstrated <a href="#query.params" title="Table&#xA0;2.&#xA0;Query String Parameters">query parameters</a> can be used with historical queries also.</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="query.hist.asof"></a>How to query an asset "as of" a specific time</h3></div></div></div><p>
+				Use the <a href="#query.params" title="Table&#xA0;2.&#xA0;Query String Parameters"><span class="emphasis"><em>asof</em></span> query parameter</a> to retrieve data as it existed at some point in time.
+				This URL finds the version of a Story asset as it existed  at 5:30 PM on October 3rd, 2005:
+			</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Hist/Story/1364?asof=2005-08-03T17:30:00.00&amp;sel=Name,ToDo,ChangeDate</code>
+			</p><pre class="programlisting">&lt;History total="1" pageSize="2147483647" pageStart="0"&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1364/903" id="Story:1364:903"&gt;
+		&lt;Attribute name="Name"&gt;Company History&lt;/Attribute&gt;
+		&lt;Attribute name="ChangeDate"&gt;2005-08-03T13:09:05.983&lt;/Attribute&gt;
+		&lt;Attribute name="ToDo"&gt;0&lt;/Attribute&gt;
+	&lt;/Asset&gt;
+&lt;/History&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id575963"></a>Remarks</h4></div></div></div><p>
+					This query returns the last historical record on or before the date specified in the <span class="emphasis"><em>asof</em></span> query string.  
+					Notice how the ChangeDate attribute indicates it was last changed at 1:09 PM on October 3rd, 2005.
+					Between 1:09 PM and 5:30 PM no other changes occurred for this Story asset.
+				</p><p>
+					The <span class="emphasis"><em>asof</em></span> query parameter can also be used on single-attribute and multi-asset historical queries.
+				</p></div></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="lbe.update"></a>Learn By Example: Updates</h2></div></div></div><p>
+			Updating assets through the API involves sending POST requests to the URL of the asset to be updated, with an XML payload.
+			These examples can be tested in your browser by using the page <code class="uri">http://localhost/VersionOne/http.html</code>.
+		</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="lbe.update.simple"></a>How to update a scalar attribute on an asset</h3></div></div></div><p>
+				Updating a scalar attribute on an asset is accomplished by marking the attribute with <strong class="userinput"><code>act="set"</code></strong>, and filling in the new value in the element's text.
+				This post will update the Phone attribute of the Member with ID 20:
+			</p><pre class="programlisting">POST /VersionOne/rest-1.v1/Data/Member/20 HTTP/1.1
+Content-Type: text/xml; charset=utf-8
+Content-Length: 78
+
+&lt;Asset&gt;
+	&lt;Attribute name="Phone" act="set"&gt;555-555-1212&lt;/Attribute&gt;
+&lt;/Asset&gt;</pre><p>The response is:</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/Data/Member/20/173" id="Member:20:173"&gt;
+	&lt;Attribute name="Phone"&gt;555-555-1212&lt;/Attribute&gt;
+&lt;/Asset&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id576051"></a>Remarks</h4></div></div></div><p>
+					The response includes the URL of the exact version of the asset that was just updated.
+				</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="lbe.update.relation"></a>How to update a single-value relation on an asset</h3></div></div></div><p>
+				Updating a single-value relation is accomplished by marking the attribute with <strong class="userinput"><code>act="set"</code></strong>, and filling the idref of the enclosed Asset element.
+				This post will change the Owner of the Scope with ID 0 to be the Member with ID 20:
+			</p><pre class="programlisting">POST /VersionOne/rest-1.v1/Data/Scope/0 HTTP/1.1
+Content-Type: text/xml; charset=utf-8
+Content-Length: 98
+
+&lt;Asset&gt;
+	&lt;Relation name="Owner" act="set"&gt;
+		&lt;Asset idref="Member:20" /&gt;
+	&lt;/Relation&gt;
+&lt;/Asset&gt;</pre><p>
+				Whereas this post will change the Owner of the Scope with ID 0 to nobody (that is, NULL):
+			</p><pre class="programlisting">POST /VersionOne/rest-1.v1/Data/Scope/0 HTTP/1.1
+Content-Type: text/xml; charset=utf-8
+Content-Length: 67
+
+&lt;Asset&gt;
+	&lt;Relation name="Owner" act="set"&gt;
+	&lt;/Relation&gt;
+&lt;/Asset&gt;</pre></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="lbe.update.multi"></a>How to add and remove values from a multi-value relation</h3></div></div></div><p>
+				Updating a multi-value relation is accomplished by marking enclosed Asset elements with either <strong class="userinput"><code>act="add"</code></strong> or <strong class="userinput"><code>act="remove"</code></strong>.
+				This post will add one Member and remove another Member from the Scope with ID 0:
+			</p><pre class="programlisting">POST /VersionOne/rest-1.v1/Data/Scope/0 HTTP/1.1
+Content-Type: text/xml; charset=utf-8
+Content-Length: 197
+
+&lt;Asset&gt;
+	&lt;Relation name="Members"&gt;
+		&lt;Asset idref="Member:1000" act="add"/&gt;
+		&lt;Asset idref="Member:1001" act="remove"/&gt;
+	&lt;/Relation&gt;
+&lt;/Asset&gt;</pre></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="lbe.update.new"></a>How to create a new asset</h3></div></div></div><p>
+				Creating a new asset is accomplished by posting to the asset type URL (without an ID).  
+				This post will create a Story with the name "New Story", within the Scope with ID 0.
+			</p><pre class="programlisting">POST /VersionOne/rest-1.v1/Data/Story HTTP/1.1
+Content-Type: text/xml; charset=utf-8
+Content-Length: 221 
+
+&lt;Asset&gt;
+	&lt;Attribute name="Name" act="set"&gt;New Story&lt;/Attribute&gt;
+	&lt;Relation name="Scope" act="set"&gt;
+		&lt;Asset idref="Scope:0" /&gt;
+	&lt;/Relation&gt;
+&lt;/Asset&gt;</pre><p>The response is:</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1072/214" id="Story:1072:214"&gt;
+	&lt;Attribute name="Name"&gt;New Story&lt;/Attribute&gt;
+	&lt;Relation name="Scope"&gt;
+		&lt;Asset href="/VersionOne.Web/rest-1.v1/Data/Scope/0" idref="Scope:0" /&gt;
+	&lt;/Relation&gt;
+&lt;/Asset&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id576100"></a>Remarks</h4></div></div></div><p>
+					When creating a new asset, all required attributes must be provided, or the save will fail.  
+					In the above example, the Name and Scope attributes are the minimum required attributes for a Story.
+				</p></div></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="lbe.newasset"></a>Learn By Example: New Asset Templates</h2></div></div></div><p>
+			A new asset template is an XML response that contains suggested attribute values for a new asset.
+			These values can be changed, and new attributes added; then the whole template can be posted for saving.
+		</p><p>
+			Often a new asset should be created in the "context" of another asset.  For example, if you ask for a new Story asset in the context of an Issue asset,
+			the new Story asset will carry over some attributes from the Issue.  A few of these attributes are the Name, Description, Scope, and a relationship back to the originating Issue.  
+			The same can be done with a Story in the context of a Request with similar attributes being carried across.
+		</p><p>
+			One example of a new asset template is asking for a new Timebox asset.  When a new Timebox asset is asked for in the context of a Scope asset,
+			it will automatically come with a suggested Name, as well as a StartDate and EndDate.  This saves the client from having to calculate
+			the StartDate and EndDate attributes.
+		</p><p>
+			These examples demonstrate how to ask for new assets.  They should be viewable using a web browser capable of displaying XML data.
+		</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="lbe.newasset.storyfromscope"></a>How to get a new Story asset template in the context of a Scope asset</h3></div></div></div><p>Use this URL to get a new Story template.</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/New/Story?ctx=Scope:1000</code>
+			</p><p>The <a href="#section.xmldescription" title="XML Response">XML Response</a> will look something like this.</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/New/Story"&gt;
+	&lt;Relation name="Scope" act="set"&gt;
+		&lt;Asset href="/VersionOne/rest-1.v1/Data/Scope/1000" idref="Scope:1000" /&gt; 
+	&lt;/Relation&gt;
+&lt;/Asset&gt;</pre><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id576198"></a>Remarks</h4></div></div></div><p>Note how the response contains a pending change for the Scope attribute.</p><p>This Story asset is not saved yet.  
+					To save it (creating a new Story asset), you must add a Name attribute, 
+					and POST it to <code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Story</code> as described in <a href="#lbe.update.new" title="How to create a new asset">How to create a new asset</a>.</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="lbe.newasset.storyfromrequest"></a>How to get a new Story asset in the context of a Request asset</h3></div></div></div><p>Use this URL to get a new Story template.</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/New/Story?ctx=Request:1684</code>
+			</p><p>The <a href="#section.xmldescription" title="XML Response">XML Response</a> will look something like this.</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/New/Story"&gt;
+	&lt;Relation name="Scope" act="set"&gt;
+		&lt;Asset href="/VersionOne/rest-1.v1/Data/Scope/1009" idref="Scope:1009" /&gt; 
+	&lt;/Relation&gt;
+	&lt;Attribute name="Description" act="set"&gt;&lt;P&gt;When an item's status is updated, alert the owner of the change in status value.&lt;/P&gt;&lt;/Attribute&gt; 
+	&lt;Attribute name="RequestedBy" act="set"&gt;Joe Customer&lt;/Attribute&gt; 
+	&lt;Attribute name="Name" act="set"&gt;Integrate with Palm Handheld&lt;/Attribute&gt; 
+	&lt;Relation name="Requests"&gt;
+		&lt;Asset href="/VersionOne/rest-1.v1/Data/Request/1684" idref="Request:1684" act="add" /&gt; 
+	&lt;/Relation&gt;
+&lt;/Asset&gt;</pre><p>
+				Note how the response contains many attributes carried over from the Request asset into the pending Story asset.  
+				Also note how the Story will have a relationship set to point back to the Request that it was created from.
+			</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="lbe.operations"></a>Learn By Example: Operations</h2></div></div></div><p>
+			An operation is an action that is executed against a single asset.  
+			For example, to delete an asset you must execute the Delete operation on the asset.  
+			To close or inactivate a Workitem, you must use the Inactivate Operation.  
+			When executing an operation a request must be made to the URL using the POST HTTP method.
+		</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="lbe.operations.delete"></a>How to delete a Story asset</h3></div></div></div><p>Post a request to this URL with an empty or 0 byte request.</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Story/1021?op=Delete</code>
+			</p><p>The <a href="#section.xmldescription" title="XML Response">XML Response</a> will look something like this.</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1021/2365" id="Story:1021:2365" /&gt;</pre><p>
+				Notice the returned "Asset" node which indicates the asset was properly updated or in this example deleted.
+				The "href" attribute can be used to retrieve the asset in its deleted state.
+				When deleting an asset from the system, the asset is simply marked as deleted.  Future current info queries will automatically excluded deleted assets from results.
+			</p><p>Currently, there is no support for undeleting a deleted asset.</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="lbe.operations.close"></a>How to close a Story asset</h3></div></div></div><p>Post a request to this URL with an empty or 0 byte request.</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Story/1022?op=Inactivate</code>
+			</p><p>The <a href="#section.xmldescription" title="XML Response">XML Response</a> will look something like this.</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1022/2367" id="Story:1021:2367" /&gt;</pre><p>
+				The returned "Asset" node indicates the asset was properly updated.
+				You can use the "href" attribute to retrieve the Story asset and see the AssetState attribute changed.
+				The AssetState attribute is the internal state of an asset.
+			</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="lbe.operations.reactivate"></a>How to reopen a Story asset</h3></div></div></div><p>Post a request to this URL with an empty or 0 byte request.</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Story/1022?op=Reactivate</code>
+			</p><p>The <a href="#section.xmldescription" title="XML Response">XML Response</a> will look something like this.</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1022/2368" id="Story:1021:2368" /&gt;</pre><p>
+				The returned "Asset" node indicates the asset was properly updated.
+				You can use the "href" attribute to retrieve the Story asset and see the AssetState attribute changed.
+			</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="lbe.operations.activate"></a>How to activate a Timebox asset</h3></div></div></div><p>Post a request to this URL with an empty or 0 byte request.</p><p>
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Timebox/2011?op=Activate</code>
+			</p><p>The <a href="#section.xmldescription" title="XML Response">XML Response</a> will look something like this.</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/Data/Timebox/2011/2254" id="Timebox:2011:2254" /&gt;</pre><p>The returned "Asset" node indicates the asset was properly updated.</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="security"></a>Security</h2></div></div></div><p>
+			All API requests must be authenticated, which associates the request with a specific Member in the system. 
+			The results of the request will then be secured according to that Member's Roles defined within the system.
+			A request that cannot be authenticated will result in a <a href="#error.401">401 Unauthorized</a> response.
+		</p><p>
+			To authenticate with the API, the initial request should include the Member's Username and Password encoded into a Basic Authentication HTTP header.
+			These credentials will be used by the system to log in, and the request will be processed in the context of that Member.
+			The response will include, as a cookie, an Authentication Ticket, which serves as proof to the system that the Member has previously logged in successfully.
+			If this Authentication Ticket cookie is returned to the server on each subsequent request, then the system can treat the Member as authenticated without performing a full log-in again.
+		</p><div class="tip" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Best Practice</h3><p>While it is possible to simply use Basic Authorization on every request, it is more efficient to return the Authorization Ticket on each request after the first.</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="errors"></a>Errors</h2></div></div></div><p>
+			When a request results in an error, the response will have an HTTP status code in the range 400-500, and detailed information about the error will be returned in the response payload.
+		</p><p>
+			For example, the request 
+			<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Story?sel=Bogus</code>
+			results in a <a href="#error.400">400 Bad Request</a> response with this payload:
+			</p><pre class="programlisting">&lt;Error href="/VersionOne/rest-1.v1/Data/Story?sel=Bogus"&gt;
+	&lt;Message&gt;Invalid SEL parameter&lt;/Message&gt;
+	&lt;Exception class="VersionOne.MetaException"&gt;
+		&lt;Message&gt;Unknown AttributeDefinition: Story.Bogus&lt;/Message&gt;
+	&lt;/Exception&gt;
+&lt;/Error&gt;</pre><p>
+		</p><p>
+			The response is an Error element, with an href attribute indicating the offending requested URL.  
+			The Message element contains a textual description of the error.
+			Optional Exception elements may contain technical details about the cause of the error.
+		</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="error.codes"></a>Common Error Status Codes</h3></div></div></div><p><a id="error.400"></a><b>400 Bad Request. </b>
+					A 400 status code is the most common error, resulting from a request that could not be processed by the API.
+					The Error Message will identify the specific problem, and there may be Exception elements that give very detailed information. 
+					The usual causes of this error are:
+					</p><div class="itemizedlist"><ul type="disc"><li><p>An invalid parameter on the query string.</p></li><li><p>An invalid payload on a POST request.</p></li></ul></div><p>
+				</p><p><a id="error.401"></a><b>401 Unauthorized. </b>
+					A 401 status code indicates that the request could not be authenticated.  
+					This may be caused by any one of these conditions:
+					</p><div class="itemizedlist"><ul type="disc"><li><p>No credentials supplied to Basic Authentication, and no Authorization Ticket cookie sent with the request.</p></li><li><p>An invalid username or password was supplied to Basic Authentication.</p></li><li><p>An expired or invalid Authorization Ticket cookie sent with the request.</p></li></ul></div><p>
+					The typical course of action would be to include Basic Authorization credentials and resend the request.
+				</p><p><a id="error.404"></a><b>404 Not Found. </b>
+					A 404 status code indicates that there is no resource to retrieve at the requested URL.  
+					This could be due to:
+					</p><div class="itemizedlist"><ul type="disc"><li><p>An invalid URL path requested.</p></li><li><p>A request for a single asset which does not exist, or is deleted, or is secured from the user's view.</p></li></ul></div><p>
+				</p><p><a id="error.405"></a><b>405 Method Not Allowed. </b>
+					A 405 status code indicates that the HTTP method used for the request is not valid at the requested URL.
+					This will be returned for any method other than GET and POST, or if POST was sent to a URL that does not support updating.  
+				</p><p><a id="error.500"></a><b>500 Internal Server Error. </b>
+					A 500 status code indicates that an unexpected error occurred during the processing of the request.  
+					The response payload will contain Exception elements with specific technical information that will help diagnose the cause of the error.
+					This could be due to:
+					</p><div class="itemizedlist"><ul type="disc"><li><p>An environmental problem (e.g., the database is unavailable).</p></li><li><p>An unhandled exception within the VersionOne software.</p></li></ul></div><p>
+				</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="section.xmldescription"></a>XML Response</h2></div></div></div><p>
+			Responses returned from the API have the content type "text/xml", by default.  The syntax of the responses varies depending on the query, update, or operation executed.
+		</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="xmldesc.query"></a>Query Responses</h3></div></div></div><p>
+				Responses for queries vary depending on what information was asked for.  First, queries are seperated into historical and non-historical, and then seperated into the type of query.
+				These types include Asset Type, Asset, and finally Attribute queries.
+			</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="xmldesc.query.current"></a>Query Data Responses</h4></div></div></div><p>
+					Data queries are the result of asking for a URL using the "/Data" portion of the path.
+					These queries are for the current state of assets not the historical states.
+				</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h5 class="title"><a id="xmldesc.query.current.assettype"></a>Asset Type Query</h5></div></div></div><p>
+						The Asset Type query is a query to retrieve all assets of a given asset type in a single list.  This list can be sorted, filtered, and paged.
+					</p><p>
+						The response will begin with an "Asset" node and it will contain attributes named "total", "pageSize", and "pageStart".  
+						The "total" attribute correspond to the total number of assets that would appear if the query was not paged.  
+						The "pageSize" attribute indicates how many assets were returned in a given page. 
+						Finally the "pageStart" attribute indicates where in the un-paged asset list this response begins at. 
+					</p><p>
+						Inside the "Assets" node are any number of "Asset" nodes which correspond to the individual assets that met the filtered parameter.
+						Each "Asset" node contains an "href" attribute which indicates the URL that the given asset resides at and it also contains an "id" attribute
+						which is the internal ID used by VersionOne to uniquely identify the given asset.
+					</p><p>
+						Under each "Asset" node are any number of "Attribute" and "Relation" nodes.  These nodes correspond to the attributes that make up the given instance of an asset type.
+						Both nodes will contain a "name" attribute which identifes the name of the attribute the node represents.
+						"Attribute" nodes will contain their value as an inner Text element.  
+						"Relation" nodes will contain one or more "Asset" nodes which are references to other assets that this specific asset relates to.
+						Each "Asset" reference node will contain an "href" attribute which points to the instance of the related asset, and an "idref" attribute which identifies the unique VersionOne id of the related asset.
+					</p><pre class="programlisting">&lt;Assets total="10" pageSize="2147483647" pageStart="0"&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1021" id="Story:1021"&gt;
+		&lt;Attribute name="Name"&gt;Logon&lt;/Attribute&gt;
+		&lt;Relation name="Status"&gt;
+			&lt;Asset href="/VersionOne/rest-1.v1/Data/StoryStatus/137" idref="StoryStatus:137" /&gt;
+		&lt;/Relation&gt;
+		&lt;Relation name="Timebox"&gt;
+			&lt;Asset href="/VersionOne/rest-1.v1/Data/Timebox/1022" idref="Timebox:1022" /&gt;
+		&lt;/Relation&gt;
+		&lt;Attribute name="DetailEstimate" /&gt;
+		&lt;Attribute name="AssetType"&gt;Story&lt;/Attribute&gt;
+		&lt;Attribute name="AssetState"&gt;128&lt;/Attribute&gt;
+		&lt;Attribute name="Number"&gt;S-01001&lt;/Attribute&gt;
+		&lt;Attribute name="ToDo" /&gt;
+		&lt;Attribute name="Order"&gt;32&lt;/Attribute&gt;
+		&lt;Relation name="Parent"&gt;
+			&lt;Asset href="/VersionOne/rest-1.v1/Data/Theme/1015" idref="Theme:1015" /&gt;
+		&lt;/Relation&gt;
+		&lt;Attribute name="Description" /&gt;
+		&lt;Attribute name="Estimate"&gt;2&lt;/Attribute&gt;
+		&lt;Relation name="Priority"&gt;
+			&lt;Asset href="/VersionOne/rest-1.v1/Data/WorkitemPriority/140" idref="WorkitemPriority:140" /&gt;
+		&lt;/Relation&gt;
+		&lt;Relation name="Scope"&gt;
+			&lt;Asset href="/VersionOne/rest-1.v1/Data/Scope/1010" idref="Scope:1010" /&gt;
+		&lt;/Relation&gt;
+		&lt;Relation name="Owners"&gt;
+			&lt;Asset href="/VersionOne/rest-1.v1/Data/Member/1000" idref="Member:1000" /&gt;
+		&lt;/Relation&gt;
+	&lt;/Asset&gt;
+	&lt;!-- Additional Asset Nodes --&gt;
+&lt;/Assets&gt;</pre></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h5 class="title"><a id="xmldesc.query.current.asset"></a>Asset Query</h5></div></div></div><p>
+						An asset response is returned when a specific asset is asked for.  It corresponds to the "Asset" sub node under the "Assets" root node described in the previous section.
+						And example of an asset query is show below.
+					</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/Data/Member/20" id="Member:20"&gt;
+	&lt;Attribute name="AssetState"&gt;64&lt;/Attribute&gt; 
+	&lt;Attribute name="DefaultRole.Name"&gt;System Admin&lt;/Attribute&gt; 
+	&lt;Attribute name="Username"&gt;admin&lt;/Attribute&gt; 
+	&lt;Attribute name="IsLoginDisabled"&gt;false&lt;/Attribute&gt; 
+	&lt;Relation name="DefaultRole"&gt;
+		&lt;Asset href="/v1.six/rest-1.v1/Data/Role/1" idref="Role:1" /&gt; 
+	&lt;/Relation&gt;
+	&lt;Attribute name="Name"&gt;Administrator&lt;/Attribute&gt; 
+	&lt;Attribute name="Phone" /&gt; 
+	&lt;Attribute name="AssetType"&gt;Member&lt;/Attribute&gt; 
+	&lt;Attribute name="Description" /&gt; 
+	&lt;Attribute name="Nickname"&gt;Admin&lt;/Attribute&gt; 
+	&lt;Attribute name="Email"&gt;admin@demo.com&lt;/Attribute&gt; 
+&lt;/Asset&gt;</pre></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h5 class="title"><a id="xmldesc.query.current.attribute"></a>Attribute Query</h5></div></div></div><p>
+						And attribute response is returned when a specific attribute on a specific asset is asked for.  
+						As described in the <a href="#xmldesc.query.current.assettype" title="Asset Type Query">Asset Type Query</a> section above, the node name may either be "Attribute" or "Relation".
+						These nodes will also contain an "of" attribute which is a URL that points to the asset that this attribute is on. 
+					</p><pre class="programlisting">&lt;Attribute name="Name" href="/VersionOne/rest-1.v1/Data/Member/20/Name" of="/VersionOne/rest-1.v1/Data/Member/20"&gt;Administrator&lt;/Attribute&gt;</pre></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="xmldesc.query.hist"></a>Query Historical Responses</h4></div></div></div><p>
+					Historical queries are executed in the same fashion as regular queries however their response is formatted differently.  
+					This is due to the fact that multiple records or nodes are returned for a particular query.
+					
+					Historical queries use the "/Hist" portion of the URL path.
+				</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h5 class="title"><a id="xmldesc.query.hist.assettype"></a>Asset Type Query</h5></div></div></div><p>
+						When asking for historical asset types, the root node will be called "History". 
+						Under it will be any number of nodes called "Asset" which correspond to individual assets as they existed at points in time.
+						On the "Asset" nodes the "href" and "id" attributes will now contain a moment number that indicates at what moment the asset changed.
+						The sub nodes "Attribute" and "Relation" are displayed in the same manner as described in the <a href="#xmldesc.query.current.assettype" title="Asset Type Query">Data Asset Type Query</a> above.
+					</p><pre class="programlisting">&lt;History total="203" pageSize="2147483647" pageStart="0"&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1364/818" id="Story:1364:818"&gt;
+		&lt;Attribute name="Name"&gt;Company History&lt;/Attribute&gt; 
+		&lt;Attribute name="ToDo"&gt;40&lt;/Attribute&gt;
+		&lt;Attribute name="ChangeDate"&gt;2005-08-01T12:28:35.577&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1364/818" id="Story:1364:874"&gt;
+		&lt;Attribute name="Name"&gt;Company History&lt;/Attribute&gt; 
+		&lt;Attribute name="ToDo"&gt;20&lt;/Attribute&gt;
+		&lt;Attribute name="ChangeDate"&gt;2005-08-02T11:05:12.123&lt;/Attribute&gt;
+	&lt;/Asset&gt;
+	&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1364/903" id="Story:1364:903"&gt;
+		&lt;Attribute name="Name"&gt;Company History&lt;/Attribute&gt; 
+		&lt;Attribute name="ToDo"&gt;0&lt;/Attribute&gt;
+		&lt;Attribute name="ChangeDate"&gt;2005-08-03T13:09:05.983&lt;/Attribute&gt;					
+	&lt;/Asset&gt;
+	&lt;!-- Additional Asset Nodes --&gt;
+&lt;/History&gt;</pre></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h5 class="title"><a id="xmldesc.query.hist.asset"></a>Asset Query</h5></div></div></div><p>
+						When asking for the history of a particular asset, the results will be essentially the same as the historical asset type query above.  
+						The only difference is that the only assets returned are those that have a specific ID.  Otherwise the results look identical to those returned above.
+					</p><pre class="programlisting">&lt;History total="2" pageSize="2147483647" pageStart="0"&gt;
+	&lt;Asset href="VersionOne/rest-1.v1/Data/Member/20/0" id="Member:20:0"&gt;
+		&lt;Attribute name="Description" /&gt; 
+		&lt;Attribute name="Nickname"&gt;Admin&lt;/Attribute&gt; 
+		&lt;Attribute name="Email" /&gt; 
+		&lt;Attribute name="AssetState"&gt;64&lt;/Attribute&gt; 
+		&lt;Attribute name="DefaultRole.Name"&gt;System Admin&lt;/Attribute&gt; 
+		&lt;Attribute name="Username"&gt;admin&lt;/Attribute&gt; 
+		&lt;Attribute name="IsLoginDisabled"&gt;false&lt;/Attribute&gt; 
+		&lt;Relation name="DefaultRole"&gt;
+			&lt;Asset href="VersionOne/rest-1.v1/Data/Role/1" idref="Role:1" /&gt; 
+		&lt;/Relation&gt;
+		&lt;Attribute name="Name"&gt;Administrator&lt;/Attribute&gt; 
+		&lt;Attribute name="Phone" /&gt; 
+		&lt;Attribute name="AssetType"&gt;Member&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+	&lt;Asset href="VersionOne/rest-1.v1/Data/Member/20/113" id="Member:20:113"&gt;
+		&lt;Attribute name="Description" /&gt; 
+		&lt;Attribute name="Nickname"&gt;Admin&lt;/Attribute&gt; 
+		&lt;Attribute name="Email"&gt;admin@demo.com&lt;/Attribute&gt; 
+		&lt;Attribute name="AssetState"&gt;64&lt;/Attribute&gt; 
+		&lt;Attribute name="DefaultRole.Name"&gt;System Admin&lt;/Attribute&gt; 
+		&lt;Attribute name="Username"&gt;admin&lt;/Attribute&gt; 
+		&lt;Attribute name="IsLoginDisabled"&gt;false&lt;/Attribute&gt; 
+		&lt;Relation name="DefaultRole"&gt;
+			&lt;Asset href="VersionOne/rest-1.v1/Data/Role/1" idref="Role:1" /&gt; 
+		&lt;/Relation&gt;
+		&lt;Attribute name="Name"&gt;Administrator&lt;/Attribute&gt; 
+		&lt;Attribute name="Phone"&gt;555-555-1212&lt;/Attribute&gt;
+		&lt;Attribute name="AssetType"&gt;Member&lt;/Attribute&gt; 
+	&lt;/Asset&gt;
+&lt;/History&gt;</pre></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h5 class="title"><a id="xmldesc.query.hist.attribute"></a>Attribute Query</h5></div></div></div><p>
+						The history of an attribute will return a root node named "History" with a number of "Attribute" or "Relation" sub-nodes.
+						Each sub-node corresponds to a moment in time when the asset the attribute exists on has changed.
+						The "Attribute" or "Relation" node will have a "name" attribute that identifes the attribute and an "of" attribute which identifies the asset the attribute is on.
+						Note that the "of" attribute will contain a URL with a moment.
+					</p><pre class="programlisting">&lt;History total="2" pageSize="2147483647" pageStart="0"&gt;
+	&lt;Attribute name="Email" href="/VersionOne/rest-1.v1/Data/Member/20/0/Email" of="/VersionOne/rest-1.v1/Data/Member/20/0" /&gt; 
+	&lt;Attribute name="Email" href="/VersionOne/rest-1.v1/Data/Member/20/113/Email" of="/VersionOne/rest-1.v1/Data/Member/20/113"&gt;admin@demo.com&lt;/Attribute&gt; 
+&lt;/History&gt;</pre></div></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="xmldesc.update"></a>Update Responses</h3></div></div></div><p>
+				The response of an update is an "Asset" node that contains an "href" attribute and "id" attribute that include the ID and Moment of the saved asset.
+				Under the "Asset" node are sub nodes that correspond to the changed attributes and relations.
+			</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/Data/Member/20/173" id="Member:20:173"&gt;
+	&lt;Attribute name="Phone"&gt;555-555-1212&lt;/Attribute&gt;
+&lt;/Asset&gt;</pre></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="xmldesc.newasset"></a>New Responses</h3></div></div></div><p>
+				The response of a new asset query is a payload that can be posted back to the API to be saved.
+				
+			</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/New/Story"&gt;
+	&lt;Relation name="Scope" act="set"&gt;
+		&lt;Asset href="/VersionOne/rest-1.v1/Data/Scope/1000" idref="Scope:1000" /&gt; 
+	&lt;/Relation&gt;
+&lt;/Asset&gt;</pre><p>or</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/New/Story"&gt;
+	&lt;Relation name="Scope" act="set"&gt;
+		&lt;Asset href="/VersionOne/rest-1.v1/Data/Scope/1009" idref="Scope:1009" /&gt; 
+	&lt;/Relation&gt;
+	&lt;Attribute name="Description" act="set"&gt;&lt;P&gt;When an item's status is updated, alert the owner of the change in status value.&lt;/P&gt;&lt;/Attribute&gt; 
+	&lt;Attribute name="RequestedBy" act="set"&gt;Joe Customer&lt;/Attribute&gt; 
+	&lt;Attribute name="Name" act="set"&gt;Integrate with Palm Handheld&lt;/Attribute&gt; 
+	&lt;Relation name="Requests"&gt;
+		&lt;Asset href="/VersionOne/rest-1.v1/Data/Request/1684" idref="Request:1684" act="add" /&gt; 
+	&lt;/Relation&gt;
+&lt;/Asset&gt;</pre><p>
+				The response contains an "Asset" node and multiple "Attribute" or "Relation" sub nodes that identify the values that the new asset will contain.
+				Note that these pending attributes and relations are pre-marked with the "act" attribute which is used to mark the pending changes.
+			</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="xmldesc.operation"></a>Operation Responses</h3></div></div></div><p>
+				The response of an operation is generally an "Asset" node with an "href" attribute and "id" attribute containing an ID and Moment.
+			</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/Data/Story/1021/2365" id="Story:1021:2365" /&gt;</pre><p>or</p><pre class="programlisting">&lt;Asset href="/VersionOne/rest-1.v1/Data/Timebox/2011/2254" id="Timebox:2011:2254" /&gt;</pre></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.syntax"></a>Syntax Reference</h2></div></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="section.query.syntax"></a>Query Syntax</h3></div></div></div><p>
+				Every attribute, asset, and list of assets in VersionOne can be identified via a unique URL. The syntax for the URL is shown below:
+				</p><div class="informalexample"><p>http://localhost/VersionOne/rest-1.v1/QueryType/AssetType/AssetID/Moment/AttributeName?QueryString</p></div><p>
+				The results of a query will be in the form of an <a href="#section.xmldescription" title="XML Response">XML response</a>.
+			</p><div class="table"><a id="query.syntax"></a><p class="title"><b>Table 1. Query URL Syntax</b></p><div class="table-contents"><table summary="Query URL Syntax" cellspacing="0" cellpadding="0" border="0"><colgroup><col /><col /></colgroup><thead><tr><th>Path Portion</th><th>Description</th></tr></thead><tbody><tr><td>QueryType</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>Required</td></tr><tr><td>Data - retrieves current information</td></tr><tr><td>Hist - retrieves historical information</td></tr></table>
+							</td></tr><tr><td>AssetType</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>Required</td></tr><tr><td>The token of the asset type to query.</td></tr></table>
+							</td></tr><tr><td>AssetID</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>Optional</td></tr><tr><td>An integer that uniquely identifies a specific asset.</td></tr></table>
+							</td></tr><tr><td>Moment</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>Optional</td></tr><tr><td>An integer that uniquely identifies a point in time for the specified asset.</td></tr></table>
+							</td></tr><tr><td>AttributeName</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>Optional</td></tr><tr><td>The <a href="#section.attribute.syntax" title="Attribute Syntax">attribute token</a> to retrieve.</td></tr></table>
+							</td></tr><tr><td>QueryString</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>Optional</td></tr><tr><td>See the <a href="#query.params" title="Table&#xA0;2.&#xA0;Query String Parameters">query string parameters</a> list for more information.</td></tr></table>
+							</td></tr></tbody></table></div></div><br class="table-break" /><div class="table"><a id="query.params"></a><p class="title"><b>Table 2. Query String Parameters</b></p><div class="table-contents"><table summary="Query String Parameters" cellspacing="0" cellpadding="0" border="0"><colgroup><col /><col /></colgroup><thead><tr><th>Parameter</th><th>Description</th></tr></thead><tbody><tr><td>sel</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>AttributeSelection</td></tr><tr><td>An <a href="#section.attributeselection.syntax" title="Attribute Selection Syntax">attribute selection token</a> used to determine which attributes are returned in a query.</td></tr><tr><td>Only valid when asking for a list of assets or an individual asset with or without a moment.</td></tr></table>
+							</td></tr><tr><td>where</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>QueryFilter</td></tr><tr><td>A <a href="#section.filter.syntax" title="Filter Syntax">filter token</a> used to filter the results of a query.</td></tr><tr><td>Only valid when asking for a list of assets.</td></tr></table>
+							</td></tr><tr><td>sort</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>OrderBy</td></tr><tr><td>An <a href="#section.orderby.syntax" title="Order By Syntax">order by token</a> used to sort the results of a query.</td></tr><tr><td>Only valid when asking for a list of assets.</td></tr></table>
+							</td></tr><tr><td>page</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>Paging</td></tr><tr><td>A <a href="#section.paging.syntax" title="Paging Syntax">paging token</a> used to page the results of a query.</td></tr><tr><td>Only valid when asking for a list of assets.</td></tr></table>
+							</td></tr><tr><td>find</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>string</td></tr><tr><td>A string used to limit the results of a query to only those whose attributes contain the given string.</td></tr><tr><td>Only valid when asking for a list of assets.</td></tr></table>
+							</td></tr><tr><td>findin</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>AttributeSelection</td></tr><tr><td>An <a href="#section.attributeselection.syntax" title="Attribute Selection Syntax">attribute selection token</a> used to determine which attributes are searched when using the <span class="emphasis"><em>find</em></span> query parameter.</td></tr><tr><td>Only valid when asking for a list of assets. No effect unless used with <span class="emphasis"><em>find</em></span> query parameter.</td></tr></table>
+							</td></tr><tr><td>op</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>Operation</td></tr><tr><td>An operation token used to execute an operation against an asset.</td></tr><tr><td>Only valid when used in a POST with an AssetType and AssetID. Any moment will be ignored.</td></tr></table>
+							</td></tr><tr><td>asof</td><td>
+								<table class="simplelist" border="0" summary="Simple list"><tr><td>DateTime</td></tr><tr><td>A datetime used to retrieve what an attribute, asset or list of assets looked like at a specific date and time.</td></tr><tr><td>When used in conjuntion with a <a href="#query.syntax" title="Table&#xA0;1.&#xA0;Query URL Syntax">moment</a> the moment will be ignored.</td></tr></table>
+							</td></tr></tbody></table></div></div><br class="table-break" /></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="section.attribute.syntax"></a>Attribute Syntax</h3></div></div></div><p>
+				An attribute is a single or multi-value property on an asset.  For example a Story has an attribute called Reference which contains text,  
+				while the Owners attribute is a multi-value relationship which allows multiple people to own a single Workitem asset.  
+				Attributes can be very simple such as the previously mentioned Reference attribute or they may be complex including downcasting, filters and aggregates.
+			</p><p>
+				Often it is useful to follow a relationship from one asset through another to get another piece of information.  
+				For example if you wanted to know the name of a Category attribute on a Story asset you could ask for the attribute Category.Name on a Story and 
+				it would return the Name attribute of the StoryCategory which the Story asset relates to.  Ex: <code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Story/1000/Category.Name</code>
+			</p><p>
+				A Scope asset has a relation called Workitems which points back to all the Workitem assets that belong to the given Scope.  This includes Story, Defect, Task, and Test
+				asset types.  If you wish to only get Story assets you can use downcasting to filter to Workitem assets to a specific type.  For example:
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Scope/0/Workitems:Story</code> would return only those Story assets that are in Scope with ID 0.
+			</p><p>
+				In another example you may wish to know all the Workitem assets in a given Scope that are owned by a specific Member.  A filtered attribute would help solve this problem.
+				You can use Workitems[Owners='Member:20'] to return only those Workitem assets that are owned by Member with ID 20.  An example URL would look like this:
+				<code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Scope/0/Workitems[Owners='Member:20']</code>
+			</p><p>
+				Lets say you wanted to get the total number of Workitem assets in a particular Scope.  You can use the Aggregate portion of an attribute to count the number of Workitem assets.
+				For example: <code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Scope/0/Workitems.@Count</code> would return the total number of Workitem assets that belong to Scope with ID 0.
+			</p><p>
+				To combine all of this into a more complex example, you may also wish to get the total Estimate for all Story assets that have an owner and are in a given Scope.  
+				Rather than getting all Workitem assets and programatically sorting them into buckets, the API can help you.
+				You can follow a relationship, filter the relationship, and then finally use an aggregate to return the final count all using a single attribute on a Scope asset.
+			</p><p>
+				The corresponding attribute would be something like this: Workitems:Story[Owners.@Count!='0'].Estimate.@Sum
+				In this example the Scope Workitems attribute will be down cast to only include Story assets, then filtered where the number of Owners is not zero.
+				Once the filtered list is determined, then Estimate for those Story assets will be pulled and finally a single rollup or sum will be returned.
+				This attribute will have a URL like this: <code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Scope/0/Workitems:Story[Owners.@Count!='0'].Estimate.@Sum</code>.
+			</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id577506"></a>Formal Syntax</h4></div></div></div><p>
+					
+
+					</p><table class="simplelist" border="0" summary="Simple list"><tr><td>Attribute = &lt;AttributeExpression&gt; [ <span class="syntax-lit"> . @ </span>
+							<span class="syntax-term">Aggregate</span> ] </td></tr><tr><td>&lt;AttributeExpression&gt; ::= &lt;AttributeTerm&gt; [ { <span class="syntax-lit"> . </span> &lt;AttributeTerm&gt; } ... ]</td></tr><tr><td>&lt;AttributeTerm&gt; ::= <span class="syntax-term">Name</span> [ &lt;DownCast&gt; ] [ &lt;Filter&gt; ]</td></tr><tr><td>&lt;DownCast&gt; ::= <span class="syntax-lit">:</span>
+							<span class="syntax-term">AssetType</span></td></tr><tr><td>&lt;Filter&gt; ::= <span class="syntax-lit"> [ </span>
+							<span class="syntax-term">Filters</span>
+							<span class="syntax-lit"> ] </span></td></tr></table><p>
+				</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id575299"></a>Arguments</h4></div></div></div><p>
+					</p><table class="simplelist" border="0" summary="Simple list"><tr><td>
+							<span class="emphasis"><em>Name</em></span>
+						</td></tr><tr><td>The name of an attribute such as the Reference or Owners attributes.</td></tr><tr><td> </td></tr><tr><td>
+							<span class="emphasis"><em>AssetType</em></span>
+						</td></tr><tr><td>An asset type used to limit or down cast muli-relation attributes such as a Story's Children attribute or a Scope's Workitems attribute.</td></tr><tr><td> </td></tr><tr><td>
+							<span class="emphasis"><em>Filters</em></span>
+						</td></tr><tr><td>A <a href="#section.filter.syntax" title="Filter Syntax">filter token</a> used to filter the results of a multi-relation attribute such as a Member's Scopes attribute.</td></tr><tr><td> </td></tr><tr><td>
+							<span class="emphasis"><em>Aggregate</em></span>
+						</td></tr><tr><td>Use "Sum" to aggregate numeric attributes.</td></tr><tr><td>Use "Count" to count multi-relation attributes. </td></tr><tr><td>Use "MinDate" to return minimum date value. </td></tr><tr><td>Use "MaxDate" to return maximum date value.</td></tr><tr><td> </td></tr></table><p>
+				</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id577865"></a>Remarks</h4></div></div></div><p><b>Downcast. </b>	A relation may refer to a higher level asset type, for example Scope.Workitems refers to Workitem assets.  Downcasting allows the relation to be filtered to a more specific asset type and
+						also the relation to be filtered by attributes of the more specific asset type.  For example downcasting Scope.Workitems to Story assets allows you to use Story specific attributes in the filter
+						such as the Category attribute.  The URL, <code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Scope/0/Workitems[Category='StoryCategory:108']</code> will return a 404 Error 
+						while <code class="uri">http://localhost/VersionOne/rest-1.v1/Data/Scope/0/Workitems:Story[Category='StoryCategory:108']</code> will work correctly.
+					</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id577869"></a>Examples</h4></div></div></div><p><b>ToDo. </b>The ToDo attribute on a Workitem asset. This is a numeric value that indicates the amount of effort still remaining to complete the Workitem.</p><p><b>Scopes. </b>The Scopes relation on a Member asset.  This is a multi-value relation that lists all the Scopes to which the Member has access.</p><p><b>ChildrenMeAndDown. </b>
+						The ChildrenMeAndDown relation on a Workitem asset.
+						This is a multi-value relation that lists the Workitem, the Children of the Workitem, and their Children, recursively.
+						This list will include any Theme, Story, Defect, Task, and Test assets that are reachable through the Children relation.
+					</p><p><b>ChildrenMeAndDown:Theme. </b>
+						The ChildrenMeAndDown relation on a Workitem asset, downcast to Theme asset type.
+						The downcast causes only Theme assets to be included in the list (not Story, Defect, Task, or Test assets).
+					</p><p><b>ChildrenMeAndDown[Owners='Member:20']. </b>A Workitem hierarchy attribute that only includes assets that are owned by the Member with ID 20.</p><p><b>ChildrenMeAndDown:Theme[Scope='Scope:1000']. </b>A Workitem hierarchy attribute that only includes Theme assets that are defined in the Scope with ID 1000.</p><p><b>ChildrenMeAndDown:Theme[Scope.ParentMeAndUp='Scope:1000']. </b>A Workitem hierarchy attribute that only includes Theme assets that are defined at or below the Scope with ID 1000.</p><p><b>Members.@Count. </b>A numeric attribute which indicates the total number of Members in the Scope.</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="section.attributeselection.syntax"></a>Attribute Selection Syntax</h3></div></div></div><p>
+				An Attribute Selection token is used to list names of attributes.  
+				For example a list of attributes to return for a given asset, or a list of attributes to search in when using the <a href="#query.params" title="Table&#xA0;2.&#xA0;Query String Parameters"><span class="emphasis"><em>find</em></span> query parameter</a>.
+				Must be seperated by commas.
+			</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id577982"></a>Formal Syntax</h4></div></div></div><p>
+					
+					{ <span class="syntax-term">AttributeDefinition</span> } [ <span class="syntax-lit"> , </span> ... ]
+				</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id578014"></a>Arguments</h4></div></div></div><p>
+					</p><table class="simplelist" border="0" summary="Simple list"><tr><td>
+							<span class="emphasis"><em>AttributeDefinition</em></span>
+						</td></tr><tr><td>The name of an attribute you wish to use in the selection.</td></tr></table><p>
+				</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id578056"></a>Examples</h4></div></div></div><p><b>Name. </b>Uses only the Name attribute in the given selection.</p><p><b>Name,Description. </b>Uses Name and Description attributes in the given selection.</p><p><b>Name,ToDo,Scope. </b>Uses Name, ToDo, and Scope attributes in the given selection.</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="section.filter.syntax"></a>Filter Syntax</h3></div></div></div><p>
+				A filter token is used to limit the results of an asset query.  For example you may wish to filter a list of Story assets to only those that have 0 To Do.
+				Note that <span class="emphasis"><em>Value</em></span> arguments are or'd together while major terms of the filter are either AND'd or OR'd together depending on the <span class="emphasis"><em>Logical</em></span> seperator. 
+				<span class="emphasis"><em>Value</em></span> arguments are surrounded by single quotation marks and separated by commas.
+			</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id578127"></a>Formal Syntax</h4></div></div></div><p>
+					
+					{ <span class="syntax-term">AttributeDefinition</span> <span class="syntax-term">Operator</span> <span class="syntax-lit"> ' </span>
+					<span class="syntax-term">Value</span>
+					<span class="syntax-lit"> ' </span> [ <span class="syntax-lit"> , </span> ... ] } [ <span class="syntax-term"> Logical </span> ... ]
+				</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id578138"></a>Arguments</h4></div></div></div><p>
+					</p><table class="simplelist" border="0" summary="Simple list"><tr><td>
+							<span class="emphasis"><em>AttributeDefinition</em></span>
+						</td></tr><tr><td>Is the attribute token you wish to filter on</td></tr><tr><td> </td></tr><tr><td>
+							<span class="emphasis"><em>Operator</em></span>
+						</td></tr><tr><td>
+							Supported operators include =, !=, &lt;, &gt;, &lt;=, and &gt;=
+						</td></tr><tr><td> </td></tr><tr><td>
+							<span class="emphasis"><em>Value</em></span>
+						</td></tr><tr><td>
+							Any number or string that you wish to match against, must be surrounded with single-quote marks.
+							To use either single- or double-quote marks within the value, enter the character twice in succession.
+						</td></tr><tr><td> </td></tr><tr><td>
+							<span class="emphasis"><em>Logical</em></span>
+						</td></tr><tr><td>
+							Use ; to denote the logical operation AND between two terms
+							Use | to denote the logical operation OR between two terms
+						</td></tr><tr><td> </td></tr><tr><td>
+							Note when using a mixture of logical AND and OR operators it may become necessary to group terms together.  
+							To do so surround the specific terms with parenthesises.
+						</td></tr></table><p>
+				</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id578234"></a>Examples</h4></div></div></div><p><b>ToDo='0'. </b>Filter assets to only those that have 0 To Do</p><p><b>ToDo!='0';Owners='Member:20'. </b>Filter assets to only those that have a non-zero To Do and are owned by Member with ID 20.</p><p><b>ToDo!='0';Owners='Member:20','Member:21','Member:22'. </b>Filter assets to only those that have a non-zero To Do and are owned by a Member with ID 20, 21, or 22.</p><p><b>Name='Can''t Boot'. </b>Filter assets to only those whose name is equal to the string "Can't Boot".  Notice the quote character has been escaped by doubling.</p><p><b>Owners.@Count&gt;'5'. </b>Filter assets to only those that are owned by more than 5 Members.</p><p><b>Estimate&lt;'1'. </b>Filter assets to only those that have an Estimate less than 1.</p><p><b>Owners='Member:20','Member:21'|Scope='Scope:5'. </b>Filter assets to only those that are owned by a Member with ID 20 or 21 OR belong to a Scope (Project) with ID 5.</p><p><b>(ToDo!='0';Owners='Member:20')|(ToDo='0';Owners='Member:20','Member:21'). </b>Filter assets to only those that have a non-zero To Do AND are owned by a Member with ID 20 OR those that have a 0 To Do AND are owned by a Member with ID 20 or 21.</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="section.orderby.syntax"></a>Order By Syntax</h3></div></div></div><p>
+				An Order By token is used to sort the results of an asset query.  For example you may wish to sort a list of Story assets by their Estimate and then Name.
+			</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id578339"></a>Formal Syntax</h4></div></div></div><p>
+					
+					{ [ <span class="syntax-lit"> - </span> | <span class="syntax-lit">+</span> ] <span class="syntax-term">AttributeDefinition</span> } [ <span class="syntax-lit"> , </span> ... ]
+				</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id578385"></a>Arguments</h4></div></div></div><p>
+					</p><table class="simplelist" border="0" summary="Simple list"><tr><td>Order Operator</td></tr><tr><td>Use + for ascending or - for descending. If omitted ascending is assumed.</td></tr><tr><td> </td></tr><tr><td>
+							<span class="emphasis"><em>AttributeDefinition</em></span>
+						</td></tr><tr><td>Is the attribute token you wish to sort by</td></tr></table><p>
+				</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id578398"></a>Examples</h4></div></div></div><p><b>Estimate. </b>Sort assets by Estimate ascending.</p><p><b>-Estimate,Name. </b>Sort assets by Estimate descending, then by Name ascending.</p></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="section.paging.syntax"></a>Paging Syntax</h3></div></div></div><p>
+				A Paging token is used to indicate how many assets you want to retrieve and where to start in the list of assets.
+				For example if you have 100 assets and want to see 10 at a time, you would use a page start of 0, and a page size of 10.
+				To retrieve the second page simply ask for a page start of 10 with a page size of 10, and so on.
+			</p><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id578462"></a>Formal Syntax</h4></div></div></div><p>
+					
+					<span class="syntax-term">PageSize</span>
+					<span class="syntax-lit"> , </span>
+					<span class="syntax-term">PageStart</span>
+				</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id578478"></a>Arguments</h4></div></div></div><p>
+					</p><table class="simplelist" border="0" summary="Simple list"><tr><td>
+							<span class="emphasis"><em>PageSize</em></span>
+						</td></tr><tr><td>Is the maximum number of items to return in a single list.</td></tr><tr><td> </td></tr><tr><td>
+							<span class="emphasis"><em>PageStart</em></span>
+						</td></tr><tr><td>Is the position (zero-based) in a list of assets to begin returning from.</td></tr></table><p>
+				</p></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id578550"></a>Examples</h4></div></div></div><p><b>5,0. </b>Return the first 5 assets.</p><p><b>5,5. </b>Return the second 5 assets.</p><p><b>5,10. </b>Return the third 5 assets.</p><p><b>10,6. </b>Return up to 10 assets, starting after the 6th asset.</p></div></div></div><div class="section" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="section.footer"></a></h2></div></div></div><p>Copyright © 2023, Digital.ai Software, Inc. All rights reserved. This document was generated 2023-12-12 11:52:52.</p></div></div></body></html>

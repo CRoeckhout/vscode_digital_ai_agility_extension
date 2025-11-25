@@ -34,7 +34,7 @@
     "commands": [
       {
         "command": "agility-helper.configure",
-        "title": "Agility: Set Instance & Token"
+        "title": "Agility: Configure"
       },
       {
         "command": "agility-helper.showMyTickets",
