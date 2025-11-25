@@ -49,6 +49,12 @@
         "command": "agility.openInBrowser",
         "title": "Open in Agility"
       }
+      ,
+      {
+        "command": "agility.createBranch",
+        "title": "Create Git Branch",
+        "icon": "$(git-branch)"
+      }
     ],
         "configuration": {
       "title": "Agility",
@@ -83,6 +89,12 @@
       "view/item/context": [
         {
           "command": "agility.openInBrowser",
+          "when": "view == agility && viewItem == ticket",
+          "group": "inline"
+        }
+        ,
+        {
+          "command": "agility.createBranch",
           "when": "view == agility && viewItem == ticket",
           "group": "inline"
         }

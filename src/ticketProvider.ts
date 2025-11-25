@@ -29,9 +29,6 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
         this.tickets = [];
         this._onDidChangeTreeData.fire(undefined);
     }
-        // Try to restore selected member from configuration when config changes
-        const config = vscode.workspace.getConfiguration('agility');
-        this.selectedMemberId = config.get<string>('selectedMember') || null;
     private resetAndRefresh() {
         this.tickets = [];
         this.members = [];

@@ -17,7 +17,7 @@ export class TicketNode extends vscode.TreeItem {
         this.command = {
             command: 'agility.openInBrowser',
             title: 'Open in Agility',
-            arguments: [url]
+            arguments: [this]
         };
     }
 }
