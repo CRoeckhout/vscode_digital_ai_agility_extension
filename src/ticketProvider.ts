@@ -14,6 +14,10 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
     private loading = false;
 
     constructor(private context: vscode.ExtensionContext) {
+        // Load saved selected member from configuration (if any)
+        const config = vscode.workspace.getConfiguration('agility');
+        this.selectedMemberId = config.get<string>('selectedMember') || null;
+
         vscode.workspace.onDidChangeConfiguration(e => {
             if (e.affectsConfiguration('agility')) {
                 this.resetAndRefresh();
@@ -25,7 +29,9 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
         this.tickets = [];
         this._onDidChangeTreeData.fire(undefined);
     }
-
+        // Try to restore selected member from configuration when config changes
+        const config = vscode.workspace.getConfiguration('agility');
+        this.selectedMemberId = config.get<string>('selectedMember') || null;
     private resetAndRefresh() {
         this.tickets = [];
         this.members = [];
@@ -62,6 +68,12 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
             return [item];
         }
 
+        // If a member was previously selected (persisted in config) but we haven't loaded members yet,
+        // load the team members so we can show a friendly name in the header.
+        if (this.selectedMemberId && this.members.length === 0) {
+            await this.loadTeamMembers(baseUrl, token);
+        }
+
         // === 1. Show Member Selector (if not already selected) ===
         if (!this.selectedMemberId) {
             if (this.members.length === 0) {
@@ -84,6 +96,8 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
             }
 
             this.selectedMemberId = selected.memberId;
+            // Persist the selection so it remains across reloads
+            await config.update('selectedMember', selected.memberId, true);
             this.refresh(); // trigger reload with selected member
             return [new vscode.TreeItem(`Loading tickets for ${selected.label}...`, vscode.TreeItemCollapsibleState.None)];
         }
@@ -139,7 +153,7 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
         // === 3. Add "Change Member" button at the top ===
         const currentMember = this.members.find(m => m.id === this.selectedMemberId);
         const header = new vscode.TreeItem(
-            `$(person) ${currentMember?.name || 'Unknown'} • Click to change`,
+            `${currentMember?.name || 'Unknown'} • Click to change`,
             vscode.TreeItemCollapsibleState.None
         );
         header.command = {
@@ -204,7 +218,10 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
     }
 
     // Called from extension.ts
-    changeMember() {
+    async changeMember() {
+        // Clear persisted selection and reset in-memory selection
+        const config = vscode.workspace.getConfiguration('agility');
+        await config.update('selectedMember', undefined, true);
         this.selectedMemberId = null;
         this.tickets = [];
         this.refresh();

@@ -50,7 +50,7 @@
         "title": "Open in Agility"
       }
     ],
-    "configuration": {
+        "configuration": {
       "title": "Agility",
       "properties": {
         "agility.instanceUrl": {
@@ -64,6 +64,11 @@
           "type": "string",
           "default": "",
           "description": "Personal Access Token (securely stored)"
+        },
+        "agility.selectedMember": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Persistently selected team member ID for the My Tickets view (do not edit unless you know the Member ID)"
         }
       }
     },
