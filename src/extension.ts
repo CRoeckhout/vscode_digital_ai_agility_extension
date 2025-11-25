@@ -1,10 +1,29 @@
 import * as vscode from 'vscode';
+import { AgilityTicketProvider, TicketNode } from './ticketProvider';
 
 export function activate(context: vscode.ExtensionContext) {
 	const config = vscode.workspace.getConfiguration('agility');
 	const instanceUrl = config.get<string>('instanceUrl')?.replace(/\/+$/, '');
 	const token = config.get<string>('accessToken');
+	const ticketProvider = new AgilityTicketProvider();
 
+	vscode.window.registerTreeDataProvider('agility', ticketProvider);
+
+	// Refresh button
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agility.refresh', () => {
+			ticketProvider.refresh();
+			vscode.window.showInformationMessage('Agility tickets refreshed');
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agility.openInBrowser', (url: string) => {
+			if (url) {
+				vscode.env.openExternal(vscode.Uri.parse(url));
+			}
+		})
+	);
 	// Quick config helper command
 	context.subscriptions.push(
 		vscode.commands.registerCommand('agility-helper.configure', async () => {
@@ -46,3 +65,4 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	);
 }
+export function deactivate() { }

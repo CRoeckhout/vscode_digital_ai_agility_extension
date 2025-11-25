@@ -9,11 +9,28 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-    "onView:agility-my-tickets"
-  ],
+  "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agility-explorer",
+          "title": "Digital.ai Agility",
+          "icon": "images/agility-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "agility-explorer": [
+        {
+          "id": "agility",
+          "name": "My Tickets",
+          "icon": "images/icon.png",
+          "contextualTitle": "My Agility Tickets"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "agility-helper.configure",
@@ -22,6 +39,15 @@
       {
         "command": "agility-helper.showMyTickets",
         "title": "Agility: Show My Open Tickets"
+      },
+      {
+        "command": "agility.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "agility.openInBrowser",
+        "title": "Open in Agility"
       }
     ],
     "configuration": {
@@ -40,6 +66,22 @@
           "description": "Personal Access Token (securely stored)"
         }
       }
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "agility.refresh",
+          "when": "view == agility",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "agility.openInBrowser",
+          "when": "view == agility && viewItem == ticket",
+          "group": "inline"
+        }
+      ]
     }
   },
   "scripts": {
