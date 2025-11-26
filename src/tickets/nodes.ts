@@ -4,6 +4,7 @@ export class TicketNode extends vscode.TreeItem {
     constructor(
         public readonly label: string,
         public readonly number: string,
+        public readonly assetId: string,
         public readonly status: string,
         public readonly project: string,
         public readonly url: string

@@ -31,11 +31,13 @@ export function mapAssetsToTicketNodes(assets: any[], baseUrl: string): TicketNo
         }
 
         const number = attrs.Number || String(asset.id).split(':').pop();
+        const assetId = `${String(asset.id).split(':').pop()}`;
         const url = `${baseUrl}/assetDetail.v1?oid=${asset.id}`;
 
         return new TicketNode(
             `${number}: ${attrs.Name}`,
             number,
+            assetId,
             attrs['Status.Name'] || '—',
             attrs['Scope.Name'] || 'No Project',
             url
@@ -53,7 +55,7 @@ export function groupTicketsByStatus(tickets: TicketNode[]): Map<string, TicketN
     return statusMap;
 }
 
-export function buildHeader(currentMember?: Member) : vscode.TreeItem {
+export function buildHeader(currentMember?: Member): vscode.TreeItem {
     const header = new vscode.TreeItem(
         `${currentMember?.name || 'Unknown'} • Click to change`,
         vscode.TreeItemCollapsibleState.None
