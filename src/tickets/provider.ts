@@ -93,7 +93,13 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
 
             // Prevent multiple simultaneous prompts caused by VS Code calling getChildren repeatedly
             if (this.selectingMember) {
-                return [new vscode.TreeItem('Select a member to continue', vscode.TreeItemCollapsibleState.None)];
+                const item = new vscode.TreeItem('Select a member to continue', vscode.TreeItemCollapsibleState.None);
+                // Make the message clickable to allow opening the member picker
+                item.command = { command: 'agility.changeMember', title: 'Select member' };
+                // Add a clear tooltip and a person icon so it's obviously actionable
+                item.tooltip = 'Click to select a team member';
+                item.iconPath = new vscode.ThemeIcon('person');
+                return [item];
             }
 
             this.selectingMember = true;
@@ -104,7 +110,12 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
                 );
 
                 if (!selected) {
-                    return [new vscode.TreeItem('Select a member to continue', vscode.TreeItemCollapsibleState.None)];
+                    const item = new vscode.TreeItem('Select a member to continue', vscode.TreeItemCollapsibleState.None);
+                    // If the quick pick was dismissed, let the user click the tree item to re-open it
+                    item.command = { command: 'agility.changeMember', title: 'Select member' };
+                    item.tooltip = 'Click to select a team member';
+                    item.iconPath = new vscode.ThemeIcon('person');
+                    return [item];
                 }
 
                 this.selectedMemberId = selected.memberId;

@@ -51,6 +51,12 @@
       }
       ,
       {
+        "command": "agility.changeMember",
+        "title": "Agility: Change Member",
+        "icon": "$(person)"
+      }
+      ,
+      {
         "command": "agility.createBranch",
         "title": "Create Git Branch",
         "icon": "$(git-branch)"
