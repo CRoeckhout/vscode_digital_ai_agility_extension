@@ -6,6 +6,7 @@ const execP = promisify(exec);
 const DEV_IN_PROGRESS_STATUS_ID = '5453938';
 import { AgilityTicketProvider } from './tickets/provider';
 import { createApi } from './agilityApi';
+import { openTicketDetail } from './views/ticketView';
 import axios from 'axios';
 
 export function registerCommands(context: vscode.ExtensionContext, provider: AgilityTicketProvider) {
@@ -73,6 +74,17 @@ export function registerCommands(context: vscode.ExtensionContext, provider: Agi
             if (typeof arg === 'string') { url = arg; }
             else if (arg && typeof arg === 'object') { url = (arg as any).url; }
             if (url) { vscode.env.openExternal(vscode.Uri.parse(url)); }
+        })
+    );
+
+    // Open ticket details inside a WebviewPanel
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility.openTicket', async (arg: any) => {
+            try {
+                await openTicketDetail(context, arg);
+            } catch (err: any) {
+                vscode.window.showErrorMessage(`Failed to open ticket: ${err?.message || err}`);
+            }
         })
     );
 

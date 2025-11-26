@@ -25,9 +25,11 @@ export class TicketNode extends vscode.TreeItem {
             this.iconPath = new vscode.ThemeIcon('ticket');
         }
 
+        // Default action when clicking a ticket: open the extension's ticket detail view
+        // (registered under the command 'agility.openTicket').
         this.command = {
-            command: 'agility.openInBrowser',
-            title: 'Open in Agility',
+            command: 'agility.openTicket',
+            title: 'Open ticket details',
             arguments: [this]
         };
     }

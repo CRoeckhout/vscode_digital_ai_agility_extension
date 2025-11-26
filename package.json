@@ -52,6 +52,11 @@
       }
       ,
       {
+        "command": "agility.openTicket",
+        "title": "Open ticket details"
+      }
+      ,
+      {
         "command": "agility.changeMember",
         "title": "Agility: Change Member",
         "icon": "$(person)"
