@@ -11,6 +11,7 @@ import {
     buildHeader,
     createStatusNodes
 } from './ticketHelpers';
+import { ignoredStatuses } from './constants/ignored-status';
 
 export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
     private _onDidChangeTreeData = new vscode.EventEmitter<any | undefined | void>();
@@ -123,9 +124,11 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
 
             try {
                 const api = await createApi(baseUrl, token, this.context);
+                const _ignoredStatuses: string = ignoredStatuses.reduce((acc, status, i) => acc += `Status!='StoryStatus:${status}'${i + 1 !== ignoredStatuses.length ? ';' : ''}`, '');
+                const where = `Owners='Member:${this.selectedMemberId}'${_ignoredStatuses.length ? `;${_ignoredStatuses}` : ''}`;
                 const response = await api.get('/Data/PrimaryWorkitem', {
                     params: {
-                        where: `Owners='Member:${this.selectedMemberId}';Status!='StoryStatus:2999130';Status!='StoryStatus:2999131'`,
+                        where: where,
                         select: 'Name,Number,Status.Name,Estimate,Scope.Name,AssetType',
                         sort: '-ChangeDate'
                     }
