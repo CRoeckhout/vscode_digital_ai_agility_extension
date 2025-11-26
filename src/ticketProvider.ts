@@ -1,8 +1,16 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 import { Member } from './models/member';
 import { TicketNode, StatusNode } from './ticketNodes';
-import { createApi, parseAttributes } from './agilityApi';
+import { createApi } from './agilityApi';
+import {
+    createLoadingItem,
+    createConfigPromptItem,
+    createNoMembersItem,
+    mapAssetsToTicketNodes,
+    groupTicketsByStatus,
+    buildHeader,
+    createStatusNodes
+} from './ticketHelpers';
 
 export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
     private _onDidChangeTreeData = new vscode.EventEmitter<any | undefined | void>();
@@ -54,9 +62,7 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
 
         // Top-level behavior
         if (this.loading) {
-            const item = new vscode.TreeItem('Loading...', vscode.TreeItemCollapsibleState.None);
-            item.iconPath = new vscode.ThemeIcon('loading~spin');
-            return [item];
+            return [createLoadingItem()];
         }
 
         const config = vscode.workspace.getConfiguration('agility');
@@ -64,10 +70,7 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
         const token = config.get<string>('accessToken');
 
         if (!baseUrl || !token) {
-            const item = new vscode.TreeItem('Click to configure Agility', vscode.TreeItemCollapsibleState.None);
-            item.iconPath = new vscode.ThemeIcon('settings-gear');
-            item.command = { command: 'agility-helper.configure', title: 'Configure' };
-            return [item];
+            return [createConfigPromptItem()];
         }
 
         // If a member was previously selected (persisted in config) but we haven't loaded members yet,
@@ -84,9 +87,7 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
             }
 
             if (this.members.length === 0) {
-                const item = new vscode.TreeItem('No team room configured or no members found', vscode.TreeItemCollapsibleState.None);
-                item.iconPath = new vscode.ThemeIcon('warning');
-                return [item];
+                return [createNoMembersItem()];
             }
 
             // Prevent multiple simultaneous prompts caused by VS Code calling getChildren repeatedly
@@ -137,21 +138,7 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
                     return this.tickets;
                 }
 
-                this.tickets = assets.map((asset: any) => {
-                    const attrs: any = {};
-                    for (const a of Object.values(asset.Attributes) as any[]) {attrs[a.name] = a.value;}
-
-                    const number = attrs.Number || asset.id.split(':').pop();
-                    const url = `${baseUrl}/assetDetail.v1?oid=${asset.id}`;
-
-                    return new TicketNode(
-                        `${number}: ${attrs.Name}`,
-                        number,
-                        attrs['Status.Name'] || '—',
-                        attrs['Scope.Name'] || 'No Project',
-                        url
-                    );
-                });
+                this.tickets = mapAssetsToTicketNodes(assets, baseUrl);
 
             } catch (err: any) {
                 const msg = err.response?.data?.error || err.message;
@@ -165,44 +152,16 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
 
         // === 3. Add "Change Member" button at the top ===
         const currentMember = this.members.find(m => m.id === this.selectedMemberId);
-        const header = new vscode.TreeItem(
-            `${currentMember?.name || 'Unknown'} • Click to change`,
-            vscode.TreeItemCollapsibleState.None
-        );
-        header.command = {
-            command: 'agility.changeMember',
-            title: 'Change Member'
-        };
-        header.iconPath = new vscode.ThemeIcon('account');
+        const header = buildHeader(currentMember);
 
         // If tickets are not TicketNode instances (error/no tickets message), return them as-is
         if (this.tickets.length === 0 || !(this.tickets[0] instanceof TicketNode)) {
             return [header, ...this.tickets];
         }
 
-        // === 4. Group tickets by status and assign colors ===
-        const statusMap = new Map<string, TicketNode[]>();
-        for (const t of this.tickets as TicketNode[]) {
-            const key = t.status || 'Unknown';
-            if (!statusMap.has(key)) {statusMap.set(key, []);}
-            statusMap.get(key)!.push(t);
-        }
-
-        const colors = [
-            '#1f77b4', // blue
-            '#ff7f0e', // orange
-            '#2ca02c', // green
-            '#d62728', // red
-            '#9467bd', // purple
-            '#8c564b'  // brown
-        ];
-        const unknownColor = '#999999';
-
-        const statuses = Array.from(statusMap.keys()).sort((a, b) => a.localeCompare(b));
-        const statusNodes: StatusNode[] = statuses.map((s, idx) => {
-            const color = s === 'Unknown' ? unknownColor : (colors[idx % colors.length] || unknownColor);
-            return new StatusNode(s, color, statusMap.get(s)!);
-        });
+        // === 4. Group tickets by status and create status nodes using helpers ===
+        const statusMap = groupTicketsByStatus(this.tickets as TicketNode[]);
+        const statusNodes = createStatusNodes(statusMap);
 
         return [header, ...statusNodes];
     }
