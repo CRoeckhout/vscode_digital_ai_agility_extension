@@ -11,6 +11,8 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
     private tickets: TicketNode[] = [];
     private members: Member[] = [];
     private selectedMemberId: string | null = null;
+    // Prevent re-entrant quick pick prompts when VS Code requests children repeatedly
+    private selectingMember = false;
     private loading = false;
 
     constructor(private context: vscode.ExtensionContext) {
@@ -18,8 +20,11 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
         const config = vscode.workspace.getConfiguration('agility');
         this.selectedMemberId = config.get<string>('selectedMember') || null;
 
+        // Only reset when core connectivity configuration changes. Avoid reacting to
+        // changes of transient values like 'selectedMember' which would cause the
+        // selection to be cleared immediately after it's saved.
         vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('agility')) {
+            if (e.affectsConfiguration('agility.instanceUrl') || e.affectsConfiguration('agility.accessToken')) {
                 this.resetAndRefresh();
             }
         });
@@ -73,6 +78,7 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
 
         // === 1. Show Member Selector (if not already selected) ===
         if (!this.selectedMemberId) {
+            // If members are not loaded yet, load them
             if (this.members.length === 0) {
                 await this.loadTeamMembers(baseUrl, token);
             }
@@ -83,20 +89,30 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
                 return [item];
             }
 
-            const selected = await vscode.window.showQuickPick(
-                this.members.map(m => ({ label: m.name, description: m.username, memberId: m.id })),
-                { placeHolder: 'Select a team member to view their tickets' }
-            );
-
-            if (!selected) {
+            // Prevent multiple simultaneous prompts caused by VS Code calling getChildren repeatedly
+            if (this.selectingMember) {
                 return [new vscode.TreeItem('Select a member to continue', vscode.TreeItemCollapsibleState.None)];
             }
 
-            this.selectedMemberId = selected.memberId;
-            // Persist the selection so it remains across reloads
-            await config.update('selectedMember', selected.memberId, true);
-            this.refresh(); // trigger reload with selected member
-            return [new vscode.TreeItem(`Loading tickets for ${selected.label}...`, vscode.TreeItemCollapsibleState.None)];
+            this.selectingMember = true;
+            try {
+                const selected = await vscode.window.showQuickPick(
+                    this.members.map(m => ({ label: m.name, description: m.username, memberId: m.id })),
+                    { placeHolder: 'Select a team member to view their tickets' }
+                );
+
+                if (!selected) {
+                    return [new vscode.TreeItem('Select a member to continue', vscode.TreeItemCollapsibleState.None)];
+                }
+
+                this.selectedMemberId = selected.memberId;
+                // Persist the selection so it remains across reloads
+                await config.update('selectedMember', selected.memberId, true);
+                this.refresh(); // trigger reload with selected member
+                return [new vscode.TreeItem(`Loading tickets for ${selected.label}...`, vscode.TreeItemCollapsibleState.None)];
+            } finally {
+                this.selectingMember = false;
+            }
         }
 
         // === 2. Load tickets for selected member ===
