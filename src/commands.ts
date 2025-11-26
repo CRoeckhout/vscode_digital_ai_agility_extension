@@ -199,4 +199,10 @@ export function registerCommands(context: vscode.ExtensionContext, provider: Agi
             (provider as any).changeMember();
         })
     );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility.clearMember', () => {
+            (provider as any).clearMember();
+        })
+    );
 }

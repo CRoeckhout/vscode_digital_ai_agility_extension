@@ -55,6 +55,12 @@
         "title": "Create Git Branch",
         "icon": "$(git-branch)"
       }
+      ,
+      {
+        "command": "agility.clearMember",
+        "title": "Clear selected member",
+        "icon": "$(close)"
+      }
     ],
         "configuration": {
       "title": "Agility",
@@ -96,6 +102,12 @@
         {
           "command": "agility.createBranch",
           "when": "view == agility && viewItem == ticket",
+          "group": "inline"
+        }
+        ,
+        {
+          "command": "agility.clearMember",
+          "when": "view == agility && viewItem == memberHeader",
           "group": "inline"
         }
       ]

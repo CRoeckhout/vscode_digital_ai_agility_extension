@@ -194,7 +194,53 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
 
     // Called from extension.ts
     async changeMember() {
-        // Clear persisted selection and reset in-memory selection
+        // Prompt the user to pick a member. Only change the persisted and
+        // in-memory selection if the user actually picks someone. This
+        // prevents the current selection being removed when the quick pick
+        // is cancelled.
+        const config = vscode.workspace.getConfiguration('agility');
+        const baseUrl = config.get<string>('instanceUrl')?.replace(/\/+$/, '');
+        const token = config.get<string>('accessToken');
+
+        if (!baseUrl || !token) {
+            vscode.window.showInformationMessage('Agility: Please configure instance URL and access token first');
+            return;
+        }
+
+        if (this.members.length === 0) {
+            await this.loadTeamMembers(baseUrl, token);
+        }
+
+        if (this.members.length === 0) {
+            vscode.window.showWarningMessage('Agility: No team members found. Check Team Room OID.');
+            return;
+        }
+
+        if (this.selectingMember) { return; }
+
+        this.selectingMember = true;
+        try {
+            const selected = await vscode.window.showQuickPick(
+                this.members.map(m => ({ label: m.name, description: m.username, memberId: m.id })),
+                { placeHolder: 'Select a team member to view their tickets' }
+            );
+
+            // If the user cancelled the picker, do nothing and keep the
+            // currently selected member intact.
+            if (!selected) { return; }
+
+            this.selectedMemberId = selected.memberId;
+            // Persist the selection so it remains across reloads
+            await config.update('selectedMember', selected.memberId, true);
+            this.tickets = [];
+            this.refresh();
+        } finally {
+            this.selectingMember = false;
+        }
+    }
+
+    // Explicitly clear the persisted and in-memory selected member
+    async clearMember() {
         const config = vscode.workspace.getConfiguration('agility');
         await config.update('selectedMember', undefined, true);
         this.selectedMemberId = null;

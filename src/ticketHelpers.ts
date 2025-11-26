@@ -59,6 +59,8 @@ export function buildHeader(currentMember?: Member) : vscode.TreeItem {
         vscode.TreeItemCollapsibleState.None
     );
     header.command = { command: 'agility.changeMember', title: 'Change Member' };
+    // Allow context-menu actions (clear selection) to target this header item
+    header.contextValue = 'memberHeader';
     header.iconPath = new vscode.ThemeIcon('account');
     return header;
 }
