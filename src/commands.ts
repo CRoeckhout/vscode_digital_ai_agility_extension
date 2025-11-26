@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 const execP = promisify(exec);
-import { AgilityTicketProvider } from './ticketProvider';
+import { AgilityTicketProvider } from './tickets/provider';
 
 export function registerCommands(context: vscode.ExtensionContext, provider: AgilityTicketProvider) {
     context.subscriptions.push(

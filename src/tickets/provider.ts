@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { Member } from './models/member';
-import { TicketNode, StatusNode } from './ticketNodes';
-import { createApi } from './agilityApi';
+import { Member } from '../models/member';
+import { TicketNode, StatusNode } from './nodes';
+import { createApi } from '../agilityApi';
 import {
     createLoadingItem,
     createConfigPromptItem,
@@ -10,8 +10,8 @@ import {
     groupTicketsByStatus,
     buildHeader,
     createStatusNodes
-} from './ticketHelpers';
-import { ignoredStatuses } from './constants/ignored-status';
+} from './helpers';
+import { ignoredStatuses } from '../constants/ignored-status';
 
 export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
     private _onDidChangeTreeData = new vscode.EventEmitter<any | undefined | void>();

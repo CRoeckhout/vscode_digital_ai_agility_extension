@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { AgilityTicketProvider } from './ticketProvider';
+import { AgilityTicketProvider } from './tickets/provider';
 import { registerCommands } from './commands';
 
 export function activate(context: vscode.ExtensionContext) {

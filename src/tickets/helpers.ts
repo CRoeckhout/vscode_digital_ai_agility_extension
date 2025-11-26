@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { TicketNode, StatusNode } from './ticketNodes';
-import { Member } from './models/member';
-import { colors, unknownColor } from './constants/colors';
+import { TicketNode, StatusNode } from './nodes';
+import { Member } from '../models/member';
+import { colors, unknownColor } from '../constants/colors';
 
 // Minimal helpers that encapsulate UI items and ticket mapping/grouping logic
 export function createLoadingItem(): vscode.TreeItem {
