@@ -47,7 +47,8 @@
       },
       {
         "command": "agility.openInBrowser",
-        "title": "Open in Agility"
+        "title": "Open in Agility",
+        "icon": "$(globe)"
       }
       ,
       {
