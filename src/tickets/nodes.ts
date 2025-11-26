@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 
 export class TicketNode extends vscode.TreeItem {
     constructor(
@@ -13,7 +14,16 @@ export class TicketNode extends vscode.TreeItem {
         this.tooltip = `${number} 		 ${status} 		 ${project}`;
         this.description = `${status} 		 ${project}`;
         this.contextValue = 'ticket';
-        this.iconPath = new vscode.ThemeIcon('ticket');
+        // Use specific SVG icons when the ticket label starts with 'S' (story) or 'D' (defect).
+        // Fallback to the default 'ticket' theme icon otherwise.
+        const firstChar = (label && label.length) ? label.charAt(0).toUpperCase() : '';
+        if (firstChar === 'S') {
+            this.iconPath = vscode.Uri.file(path.join(__dirname, '..', '..', 'images', 'story-icon.svg'));
+        } else if (firstChar === 'D') {
+            this.iconPath = vscode.Uri.file(path.join(__dirname, '..', '..', 'images', 'defect-icon.svg'));
+        } else {
+            this.iconPath = new vscode.ThemeIcon('ticket');
+        }
 
         this.command = {
             command: 'agility.openInBrowser',

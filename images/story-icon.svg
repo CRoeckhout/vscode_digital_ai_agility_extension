@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="22" height="30" viewBox="11 16 22 30" preserveAspectRatio="xMidYMid meet">
+	<g style="transform-box: view-box; transform-origin: center; transform: scale(.9);">		<path d="M0 0 C7.26 0 14.52 0 22 0 C22 9.9 22 19.8 22 30 C14.74 30 7.48 30 0 30 C0 20.1 0 10.2 0 0 Z " fill="#E4EEE4" transform="translate(11,16)"/>
+		<path d="M0 0 C7.26 0 14.52 0 22 0 C22 9.9 22 19.8 22 30 C14.74 30 7.48 30 0 30 C0 20.1 0 10.2 0 0 Z M2 3 C2 10.92 2 18.84 2 27 C7.94 27 13.88 27 20 27 C20 19.08 20 11.16 20 3 C14.06 3 8.12 3 2 3 Z " fill="#4B934E" transform="translate(11,16)"/>
+		<path d="M0 0 C3.3 0 6.6 0 10 0 C10 2.31 10 4.62 10 7 C6.7 7 3.4 7 0 7 C0 4.69 0 2.38 0 0 Z " fill="#6DA870" transform="translate(17,23)"/>
+		<path d="M0 0 C3.3 0 6.6 0 10 0 C10 0.99 10 1.98 10 3 C6.7 3 3.4 3 0 3 C0 2.01 0 1.02 0 0 Z " fill="#73AB75" transform="translate(17,32)"/>
+	</g>
+</svg>
