@@ -1,71 +1,137 @@
-# agility-helper README
+# Digital.ai Agility Helper
 
-This is the README for your extension "agility-helper". After writing up a brief description, we recommend including the following sections.
+Digital.ai Agility Helper is a small VS Code extension that helps you manage Digital.ai Agility tickets directly from the editor. It adds an activity-bar view where you can see your tickets, open ticket details, open a ticket in the Agility web UI, create Git branches for tickets, and switch the selected team member.
+
+Images used by the extension live in the `images/` folder and are referenced from contributions in `package.json`.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- Activity Bar explorer titled "Digital.ai Agility" with a "My Tickets" view
+- Commands provided (see Command Palette):
+	- Agility: Configure
+	- Agility: Show My Open Tickets
+	- Refresh
+	- Open in Agility
+	- Open ticket details
+	- Agility: Change Member
+	- Create Git Branch
+	- Clear selected member
+- Persistently store a selected team member via the `agility.selectedMember` setting
+- Open tickets in the browser and create git branches based on ticket identifiers
 
-For example if there is an image subfolder under your extension project workspace:
+## Quick Install
 
-\!\[feature X\]\(images/feature-x.png\)
+1. Install the packaged extension (.vsix) from the Marketplace or local file. If you have a `.vsix` file:
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+```powershell
+code --install-extension .\agility-helper-<version>.vsix
+```
 
-## Requirements
+2. Reload VS Code. The "Digital.ai Agility" icon should appear in the Activity Bar.
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+## Configuration
 
-## Extension Settings
+Open Settings (File → Preferences → Settings) and search for "Agility" or use the settings editor to set these values:
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+- `agility.instanceUrl` — Your Agility instance URL (e.g. https://www12.v1host.com/YourCompany)
+- `agility.accessToken` — Personal Access Token (stored securely via VS Code settings storage)
+- `agility.selectedMember` — Optional: the ID of a team member to filter the My Tickets view
 
-For example:
+The extension contributes settings in `package.json` and validates the `instanceUrl` format.
 
-This extension contributes the following settings:
+## Usage
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+1. Configure `agility.instanceUrl` and `agility.accessToken`.
+2. Use the Activity Bar → Digital.ai Agility → My Tickets to view tickets.
+3. Use the View title menu or item context menus to refresh, open in browser, or create a branch.
+4. Use the Command Palette (Ctrl+Shift+P) to run commands like "Agility: Configure" or "Create Git Branch".
 
-## Known Issues
+## Development
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+Clone the repo and install dependencies, then compile:
 
-## Release Notes
+```powershell
+npm install
+npm run compile
+```
 
-Users appreciate release notes as you update your extension.
+During development you can run in watch mode:
 
-### 1.0.0
+```powershell
+npm run watch
+```
 
-Initial release of ...
+To run the extension in the Extension Development Host (inside VS Code) use the built-in debug target (F5).
 
-### 1.0.1
+### Tests
 
-Fixed issue #.
+Unit/e2e tests (if present) run via the `test` script which uses the VS Code test harness:
 
-### 1.1.0
+```powershell
+npm test
+```
 
-Added features X, Y, and Z.
+## Packaging (create a .vsix)
+
+Use `vsce` (or `npx @vscode/vsce`) to package the extension after compiling to `out/`:
+
+```powershell
+npm run compile
+npx @vscode/vsce package
+```
+
+This will produce a file like `agility-helper-0.0.1.vsix` based on `package.json` name/version.
+
+If `npx @vscode/vsce package` fails with an error referencing `undici`/`File is not defined`, upgrade Node to a modern LTS (Node 18.15+ or Node 20.x) as the packager relies on newer Node web platform globals. See Troubleshooting below.
+
+## Publishing to the Visual Studio Marketplace
+
+1. Ensure `publisher` in `package.json` matches your Marketplace publisher ID (the project currently lists `"publisher": "Realize"`).
+2. Create or use an existing publisher on the Marketplace and generate a Personal Access Token (PAT) with the `Manage` and `Publish` scopes.
+3. Publish with `vsce`:
+
+```powershell
+$env:VSCE_PAT = '<your-pat-here>'
+npx @vscode/vsce publish
+```
+
+Or use `npx @vscode/vsce publish <patch|minor|major>` to bump the version automatically.
+
+Important: do not share your PAT publicly.
+
+## Troubleshooting
+
+- Problem: `ReferenceError: File is not defined` when running `npx vsce package`.
+	- Cause: `undici` (used by the packager) expects Web `File` global; older Node versions may lack it.
+	- Fix: Upgrade Node to an LTS version (Node 18.15+ or Node 20.x) and retry:
+
+```powershell
+node -v
+# use nvm-windows or the official Node installer to upgrade
+```
+
+- Problem: `out/extension.js` missing after compile
+	- Ensure TypeScript compiled successfully (`npm run compile`). Fix any TypeScript errors reported by the compiler.
+
+## Contributing
+
+Contributions are welcome. Typical workflow:
+
+1. Fork the repo
+2. Create a feature branch
+3. Implement and test your change
+4. Open a Pull Request with a clear description
+
+Please follow the repository's existing code style and tests.
+
+## License
+
+This project is licensed under the MIT License — see the `LICENSE` file for details.
+
+## Contact
+
+If you need help or want to report a bug, open an issue in this repository or email the maintainers.
 
 ---
 
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+This README was generated to help you get the extension packaged, published, and used in VS Code. If you want, I can also add a short `CONTRIBUTING.md`, a release checklist, or automate the packaging step in `package.json`.
