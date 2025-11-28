@@ -67,6 +67,15 @@ export function buildHeader(currentMember?: Member): vscode.TreeItem {
     return header;
 }
 
+export function buildTeamHeader(teamDescriptor?: string): vscode.TreeItem {
+    const label = teamDescriptor ? `${teamDescriptor} • Click to change` : 'Click to configure team • Click to change';
+    const header = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
+    header.command = { command: 'agility.changeTeam', title: 'Change Team' };
+    header.contextValue = 'teamHeader';
+    header.iconPath = new vscode.ThemeIcon('organization');
+    return header;
+}
+
 export function createStatusNodes(statusMap: Map<string, TicketNode[]>): StatusNode[] {
     const statuses = Array.from(statusMap.keys()).sort((a, b) => a.localeCompare(b));
     return statuses.map((s, idx) => {

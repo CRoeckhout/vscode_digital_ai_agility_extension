@@ -32,6 +32,13 @@
           "icon": "images/icon.png",
           "contextualTitle": "My Agility Tickets"
         }
+        ,
+        {
+          "id": "agility-team",
+          "name": "Team Tickets",
+          "icon": "images/icon.png",
+          "contextualTitle": "Team Agility Tickets"
+        }
       ]
     },
     "commands": [
@@ -63,6 +70,11 @@
         "icon": "$(person)"
       },
       {
+        "command": "agility.changeTeam",
+        "title": "Agility: Change Team",
+        "icon": "$(organization)"
+      },
+      {
         "command": "agility.createBranch",
         "title": "Create Git Branch",
         "icon": "$(git-branch)"
@@ -70,6 +82,12 @@
       {
         "command": "agility.clearMember",
         "title": "Clear selected member",
+        "icon": "$(close)"
+      }
+      ,
+      {
+        "command": "agility.clearTeam",
+        "title": "Clear selected team",
         "icon": "$(close)"
       }
     ],
@@ -96,6 +114,12 @@
           "default": null,
           "description": "Persistently selected team member ID for the My Tickets view (do not edit unless you know the Member ID)"
         }
+          ,
+          "agility.selectedTeam": {
+            "type": ["string", "null"],
+            "default": null,
+            "description": "Persistently selected Team ID for the Team Tickets view (enter the numeric Team OID part, e.g. 12345)"
+          }
       }
     },
     "menus": {
@@ -120,6 +144,21 @@
         {
           "command": "agility.clearMember",
           "when": "view == agility && viewItem == memberHeader",
+          "group": "inline"
+        },
+        {
+          "command": "agility.openInBrowser",
+          "when": "view == agility-team && viewItem == ticket",
+          "group": "inline"
+        },
+        {
+          "command": "agility.createBranch",
+          "when": "view == agility-team && viewItem == ticket",
+          "group": "inline"
+        },
+        {
+          "command": "agility.clearTeam",
+          "when": "view == agility-team && viewItem == teamHeader",
           "group": "inline"
         }
       ]

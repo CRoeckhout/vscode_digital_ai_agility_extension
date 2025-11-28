@@ -5,11 +5,12 @@ const execP = promisify(exec);
 // Placeholder status id for "Dev in Progress" — replace with the real id for your Agility instance
 const DEV_IN_PROGRESS_STATUS_ID = '5453938';
 import { AgilityTicketProvider } from './tickets/provider';
+import TeamTicketProvider from './tickets/teamProvider';
 import { createApi } from './agilityApi';
 import { openTicketDetail } from './views/ticketView';
 import axios from 'axios';
 
-export function registerCommands(context: vscode.ExtensionContext, provider: AgilityTicketProvider) {
+export function registerCommands(context: vscode.ExtensionContext, provider: AgilityTicketProvider, teamProvider?: TeamTicketProvider) {
     // Helper: update a story's status via Agility REST endpoint
     async function updateStoryStatus(storyId: string, statusId: string): Promise<void> {
         const config = vscode.workspace.getConfiguration('agility');
@@ -283,6 +284,19 @@ export function registerCommands(context: vscode.ExtensionContext, provider: Agi
     context.subscriptions.push(
         vscode.commands.registerCommand('agility.clearMember', () => {
             (provider as any).clearMember();
+        })
+    );
+
+    // Team commands (if team provider was registered)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility.changeTeam', () => {
+            if (teamProvider) { (teamProvider as any).changeTeam(); }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility.clearTeam', () => {
+            if (teamProvider) { (teamProvider as any).clearTeam(); }
         })
     );
 }
