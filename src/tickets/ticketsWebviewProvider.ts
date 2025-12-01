@@ -3,6 +3,9 @@ import { createApi } from '../agilityApi';
 import { ignoredStatuses } from '../constants/ignored-status';
 import { colors, unknownColor } from '../constants/colors';
 
+/**
+ * Represents a single ticket (workitem) from Agility
+ */
 interface TicketData {
   readonly label: string;
   readonly number: string;
@@ -13,35 +16,80 @@ interface TicketData {
   readonly assetType: string;
 }
 
+/**
+ * Represents a group of tickets under a common status
+ */
 interface StatusGroup {
   readonly status: string;
   readonly color: string;
   readonly tickets: readonly TicketData[];
 }
 
-export class TeamWebviewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'agility-team';
+/**
+ * Member information for the "My Tickets" mode
+ */
+interface MemberInfo {
+  readonly id: string;
+  readonly name: string;
+  readonly username: string;
+}
 
+/**
+ * View mode determines the behavior of the provider
+ * - 'my-tickets': Single member selection with member picker
+ * - 'team-tickets': Team OID or multiple member IDs
+ */
+type ViewMode = 'my-tickets' | 'team-tickets';
+
+/**
+ * Unified WebviewViewProvider for both "My Tickets" and "Team Tickets" views.
+ * Avoids code duplication by parameterizing the view mode.
+ */
+export class TicketsWebviewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
   private tickets: TicketData[] = [];
-  private selectedTeamCsv: string | null = null;
-  private currentFilter: string = '';
+  private currentFilter = '';
   private loading = false;
 
-  constructor(private readonly context: vscode.ExtensionContext) {
+  // My Tickets mode state
+  private members: MemberInfo[] = [];
+  private selectedMemberId: string | null = null;
+
+  // Team Tickets mode state
+  private selectedTeamCsv: string | null = null;
+
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly viewType: string,
+    private readonly mode: ViewMode
+  ) {
     const config = vscode.workspace.getConfiguration('agility');
-    this.selectedTeamCsv = config.get<string>('selectedTeam') ?? null;
+
+    if (this.mode === 'my-tickets') {
+      this.selectedMemberId = config.get<string>('selectedMember') ?? null;
+    } else {
+      this.selectedTeamCsv = config.get<string>('selectedTeam') ?? null;
+    }
 
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (
         e.affectsConfiguration('agility.instanceUrl') ||
         e.affectsConfiguration('agility.accessToken')
       ) {
-        this.tickets = [];
-        this.selectedTeamCsv = null;
+        this.resetState();
         this.refresh();
       }
     });
+  }
+
+  private resetState(): void {
+    this.tickets = [];
+    this.members = [];
+    if (this.mode === 'my-tickets') {
+      this.selectedMemberId = null;
+    } else {
+      this.selectedTeamCsv = null;
+    }
   }
 
   resolveWebviewView(
@@ -68,7 +116,63 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
     this.updateWebview();
   }
 
+  // === Public methods for commands ===
+
+  async changeMember(): Promise<void> {
+    if (this.mode !== 'my-tickets') {
+      return;
+    }
+
+    const config = vscode.workspace.getConfiguration('agility');
+    const baseUrl = config.get<string>('instanceUrl')?.replace(/\/+$/, '');
+    const token = config.get<string>('accessToken');
+
+    if (!baseUrl || !token) {
+      vscode.window.showInformationMessage('Agility: Please configure instance URL and access token first');
+      return;
+    }
+
+    if (this.members.length === 0) {
+      await this.loadMembers(baseUrl, token);
+    }
+
+    if (this.members.length === 0) {
+      vscode.window.showWarningMessage('Agility: No team members found.');
+      return;
+    }
+
+    const selected = await vscode.window.showQuickPick(
+      this.members.map((m) => ({ label: m.name, description: m.username, memberId: m.id })),
+      { placeHolder: 'Select a team member to view their tickets' }
+    );
+
+    if (!selected) {
+      return;
+    }
+
+    this.selectedMemberId = selected.memberId;
+    await config.update('selectedMember', selected.memberId, true);
+    this.tickets = [];
+    this.refresh();
+  }
+
+  async clearMember(): Promise<void> {
+    if (this.mode !== 'my-tickets') {
+      return;
+    }
+
+    const config = vscode.workspace.getConfiguration('agility');
+    await config.update('selectedMember', undefined, true);
+    this.selectedMemberId = null;
+    this.tickets = [];
+    this.refresh();
+  }
+
   async changeTeam(): Promise<void> {
+    if (this.mode !== 'team-tickets') {
+      return;
+    }
+
     const config = vscode.workspace.getConfiguration('agility');
     const current = this.selectedTeamCsv ?? '';
     const entered = await vscode.window.showInputBox({
@@ -87,6 +191,10 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   async clearTeam(): Promise<void> {
+    if (this.mode !== 'team-tickets') {
+      return;
+    }
+
     const config = vscode.workspace.getConfiguration('agility');
     await config.update('selectedTeam', undefined, true);
     this.selectedTeamCsv = null;
@@ -94,44 +202,73 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
     this.refresh();
   }
 
+  // === Message handling ===
+
   private async handleMessage(message: {
     type: string;
     filter?: string;
     url?: string;
     ticket?: TicketData;
     teamCsv?: string;
+    memberId?: string;
   }): Promise<void> {
     switch (message.type) {
       case 'filter':
         this.currentFilter = message.filter ?? '';
-        // Send filtered data back without re-rendering HTML
         this.sendTicketsUpdate();
         break;
+
       case 'refresh':
         this.tickets = [];
         this.updateWebview();
         break;
+
       case 'openInBrowser':
         if (message.url) {
           await vscode.env.openExternal(vscode.Uri.parse(message.url));
         }
         break;
+
       case 'openTicket':
         if (message.ticket) {
           await vscode.commands.executeCommand('agility.openTicket', message.ticket);
         }
         break;
+
       case 'createBranch':
         if (message.ticket) {
           await vscode.commands.executeCommand('agility.createBranch', message.ticket);
         }
         break;
+
+      // My Tickets mode messages
+      case 'changeMember':
+        await this.changeMember();
+        break;
+
+      case 'clearMember':
+        await this.clearMember();
+        break;
+
+      case 'setMember':
+        if (message.memberId !== undefined) {
+          const config = vscode.workspace.getConfiguration('agility');
+          await config.update('selectedMember', message.memberId || null, true);
+          this.selectedMemberId = message.memberId || null;
+          this.tickets = [];
+          this.updateWebview();
+        }
+        break;
+
+      // Team Tickets mode messages
       case 'changeTeam':
         await this.changeTeam();
         break;
+
       case 'clearTeam':
         await this.clearTeam();
         break;
+
       case 'setTeam':
         if (message.teamCsv !== undefined) {
           const config = vscode.workspace.getConfiguration('agility');
@@ -143,6 +280,8 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
         break;
     }
   }
+
+  // === Webview updates ===
 
   private sendTicketsUpdate(): void {
     if (!this.view) {
@@ -183,10 +322,22 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    // No team selected
-    if (!this.selectedTeamCsv) {
-      this.view.webview.html = this.getSelectTeamHtml();
-      return;
+    // Check if selection is needed
+    if (this.mode === 'my-tickets') {
+      // Load members if needed
+      if (this.members.length === 0) {
+        await this.loadMembers(baseUrl, token);
+      }
+
+      if (!this.selectedMemberId) {
+        this.view.webview.html = this.getSelectMemberHtml();
+        return;
+      }
+    } else {
+      if (!this.selectedTeamCsv) {
+        this.view.webview.html = this.getSelectTeamHtml();
+        return;
+      }
     }
 
     // Load tickets if not loaded
@@ -209,11 +360,40 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
     this.view.webview.html = this.getTicketsHtml();
   }
 
+  // === Data loading ===
+
+  private async loadMembers(baseUrl: string, token: string): Promise<void> {
+    try {
+      const api = await createApi(baseUrl, token, this.context);
+      const res = await api.get('/Data/Member', {
+        params: { select: 'Name,Username' },
+      });
+
+      this.members = (res.data.Assets ?? [])
+        .map((a: Record<string, unknown>) => {
+          const attrs: Record<string, unknown> = {};
+          const attributes = a.Attributes as Record<string, { name: string; value: unknown }> | undefined;
+          if (attributes) {
+            for (const v of Object.values(attributes)) {
+              attrs[v.name] = v.value;
+            }
+          }
+          return {
+            id: String(a.id ?? '').split(':')[1] ?? '',
+            name: (attrs.Name as string) ?? (attrs.Username as string) ?? '',
+            username: (attrs.Username as string) ?? '—',
+          };
+        })
+        .sort((a: MemberInfo, b: MemberInfo) => a.name.localeCompare(b.name));
+    } catch {
+      vscode.window.showWarningMessage('Could not load team members.');
+      this.members = [];
+    }
+  }
+
   private async loadTickets(baseUrl: string, token: string): Promise<void> {
     const api = await createApi(baseUrl, token, this.context);
-    const raw = this.selectedTeamCsv ?? '';
-    const entries = raw.split(',').map((s) => s.trim()).filter(Boolean);
-    const ignoredStatusFilter: string = ignoredStatuses.reduce(
+    const ignoredStatusFilter = ignoredStatuses.reduce(
       (acc, status, i) =>
         acc + `Status!='StoryStatus:${status}'${i + 1 !== ignoredStatuses.length ? ';' : ''}`,
       ''
@@ -231,36 +411,51 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
 
     let response: { data: { Assets: unknown[] } } | undefined;
 
-    if (entries.length === 1) {
-      const single = entries[0];
-      const asTeamId = single.replace(/^Team:/i, '').trim();
-      if (asTeamId) {
-        const whereTeam = `Team='Team:${asTeamId}'${ignoredStatusFilter.length ? `;${ignoredStatusFilter}` : ''}`;
-        try {
-          response = await runQuery(whereTeam);
-        } catch {
-          response = undefined;
-        }
-
-        const assets = (response?.data?.Assets ?? []) as Record<string, unknown>[];
-        if (assets.length > 0) {
-          this.tickets = this.mapAssetsToTickets(assets, baseUrl);
-        } else {
-          const memberId = single.replace(/^Member:/i, '').trim();
-          const ownersExpr = `Owners='Member:${memberId}'`;
-          const whereOwners = `${ownersExpr}${ignoredStatusFilter.length ? `;${ignoredStatusFilter}` : ''}`;
-          response = await runQuery(whereOwners);
-          const assets2 = (response.data.Assets ?? []) as Record<string, unknown>[];
-          this.tickets = this.mapAssetsToTickets(assets2, baseUrl);
-        }
-      }
-    } else {
-      const members = entries.map((s) => s.replace(/^Member:/i, '').trim()).filter(Boolean);
-      const ownersExpr = members.map((id) => `Owners='Member:${id}'`).join(',');
-      const whereOwners = `${ownersExpr}${ignoredStatusFilter.length ? `;${ignoredStatusFilter}` : ''}`;
-      response = await runQuery(whereOwners);
+    if (this.mode === 'my-tickets') {
+      // Simple owner query for single member
+      const ownersExpr = `Owners='Member:${this.selectedMemberId}'`;
+      const whereClause = `${ownersExpr}${ignoredStatusFilter.length ? `;${ignoredStatusFilter}` : ''}`;
+      response = await runQuery(whereClause);
       const assets = (response.data.Assets ?? []) as Record<string, unknown>[];
       this.tickets = this.mapAssetsToTickets(assets, baseUrl);
+    } else {
+      // Team mode: handle Team OID or multiple member IDs
+      const raw = this.selectedTeamCsv ?? '';
+      const entries = raw.split(',').map((s) => s.trim()).filter(Boolean);
+
+      if (entries.length === 1) {
+        const single = entries[0];
+        const asTeamId = single.replace(/^Team:/i, '').trim();
+        if (asTeamId) {
+          const whereTeam = `Team='Team:${asTeamId}'${ignoredStatusFilter.length ? `;${ignoredStatusFilter}` : ''}`;
+          try {
+            response = await runQuery(whereTeam);
+          } catch {
+            response = undefined;
+          }
+
+          const assets = (response?.data?.Assets ?? []) as Record<string, unknown>[];
+          if (assets.length > 0) {
+            this.tickets = this.mapAssetsToTickets(assets, baseUrl);
+          } else {
+            // Fall back to treating as member ID
+            const memberId = single.replace(/^Member:/i, '').trim();
+            const ownersExpr = `Owners='Member:${memberId}'`;
+            const whereOwners = `${ownersExpr}${ignoredStatusFilter.length ? `;${ignoredStatusFilter}` : ''}`;
+            response = await runQuery(whereOwners);
+            const assets2 = (response.data.Assets ?? []) as Record<string, unknown>[];
+            this.tickets = this.mapAssetsToTickets(assets2, baseUrl);
+          }
+        }
+      } else {
+        // Multiple entries: treat as member IDs
+        const members = entries.map((s) => s.replace(/^Member:/i, '').trim()).filter(Boolean);
+        const ownersExpr = members.map((id) => `Owners='Member:${id}'`).join(',');
+        const whereOwners = `${ownersExpr}${ignoredStatusFilter.length ? `;${ignoredStatusFilter}` : ''}`;
+        response = await runQuery(whereOwners);
+        const assets = (response.data.Assets ?? []) as Record<string, unknown>[];
+        this.tickets = this.mapAssetsToTickets(assets, baseUrl);
+      }
     }
   }
 
@@ -307,6 +502,8 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
       return { status: s, color, tickets: statusMap.get(s)! };
     });
   }
+
+  // === HTML Rendering ===
 
   private escapeHtml(input: unknown): string {
     if (input === undefined || input === null) {
@@ -537,10 +734,10 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
         .btn:hover {
           background: var(--vscode-button-hoverBackground);
         }
-        .team-input-container {
+        .input-container {
           margin-top: 12px;
         }
-        .team-input {
+        .text-input {
           width: 100%;
           background: var(--vscode-input-background);
           border: 1px solid var(--vscode-input-border, transparent);
@@ -550,11 +747,34 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
           font-size: 13px;
           outline: none;
         }
-        .team-input:focus {
+        .text-input:focus {
           border-color: var(--vscode-focusBorder);
         }
-        .team-input::placeholder {
+        .text-input::placeholder {
           color: var(--vscode-input-placeholderForeground);
+        }
+        .member-list {
+          max-height: 300px;
+          overflow-y: auto;
+          margin-top: 8px;
+        }
+        .member-item {
+          display: flex;
+          align-items: center;
+          padding: 6px 8px;
+          cursor: pointer;
+          border-radius: 4px;
+        }
+        .member-item:hover {
+          background: var(--vscode-list-hoverBackground);
+        }
+        .member-name {
+          flex: 1;
+          font-weight: 500;
+        }
+        .member-username {
+          color: var(--vscode-descriptionForeground);
+          font-size: 12px;
         }
         .loading {
           display: flex;
@@ -626,6 +846,74 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
     `;
   }
 
+  private getSelectMemberHtml(): string {
+    const membersHtml = this.members
+      .map(
+        (m) => `
+        <div class="member-item" onclick="selectMember('${m.id}')">
+          <span class="member-name">${this.escapeHtml(m.name)}</span>
+          <span class="member-username">${this.escapeHtml(m.username)}</span>
+        </div>
+      `
+      )
+      .join('');
+
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        ${this.getBaseStyles()}
+      </head>
+      <body>
+        <div class="container">
+          <div class="empty-state" style="padding-bottom: 8px;">
+            <div class="empty-state-icon">👤</div>
+            <div>Select a team member</div>
+            <div style="margin-top: 4px; font-size: 12px;">Choose whose tickets to view</div>
+          </div>
+          <div class="input-container">
+            <input type="text" class="text-input" id="memberSearch" placeholder="Search members...">
+          </div>
+          <div class="member-list" id="memberList">
+            ${membersHtml}
+          </div>
+        </div>
+        <script>
+          const vscode = acquireVsCodeApi();
+          const memberSearch = document.getElementById('memberSearch');
+          const memberList = document.getElementById('memberList');
+          const allMembers = ${JSON.stringify(this.members)};
+
+          memberSearch.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = allMembers.filter(m =>
+              m.name.toLowerCase().includes(query) || m.username.toLowerCase().includes(query)
+            );
+            memberList.innerHTML = filtered.map(m => \`
+              <div class="member-item" onclick="selectMember('\${m.id}')">
+                <span class="member-name">\${escapeHtml(m.name)}</span>
+                <span class="member-username">\${escapeHtml(m.username)}</span>
+              </div>
+            \`).join('');
+          });
+
+          function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+          }
+
+          function selectMember(memberId) {
+            vscode.postMessage({ type: 'setMember', memberId });
+          }
+        </script>
+      </body>
+      </html>
+    `;
+  }
+
   private getSelectTeamHtml(): string {
     return `
       <!DOCTYPE html>
@@ -641,8 +929,8 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
             <div class="empty-state-icon">👥</div>
             <div>No team configured</div>
             <div style="margin-top: 4px; font-size: 12px;">Enter a Team OID or comma-separated Member IDs</div>
-            <div class="team-input-container">
-              <input type="text" class="team-input" id="teamInput" placeholder="e.g. 12345 or 12,34,56">
+            <div class="input-container">
+              <input type="text" class="text-input" id="teamInput" placeholder="e.g. 12345 or 12,34,56">
             </div>
             <button class="btn" id="setTeamBtn">Set Team</button>
           </div>
@@ -651,11 +939,11 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
           const vscode = acquireVsCodeApi();
           const input = document.getElementById('teamInput');
           const btn = document.getElementById('setTeamBtn');
-          
+
           btn.addEventListener('click', () => {
             vscode.postMessage({ type: 'setTeam', teamCsv: input.value.trim() });
           });
-          
+
           input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
               vscode.postMessage({ type: 'setTeam', teamCsv: input.value.trim() });
@@ -711,6 +999,18 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
 
     // Group by status
     const groups = this.groupTicketsByStatus(filteredTickets);
+
+    // Header label and actions based on mode
+    const headerLabel = this.mode === 'my-tickets'
+      ? this.getMemberName()
+      : (this.selectedTeamCsv ?? '');
+
+    const headerIcon = this.mode === 'my-tickets'
+      ? `<svg class="header-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/></svg>`
+      : `<svg class="header-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/></svg>`;
+
+    const changeAction = this.mode === 'my-tickets' ? 'changeMember' : 'changeTeam';
+    const clearAction = this.mode === 'my-tickets' ? 'clearMember' : 'clearTeam';
 
     // Build HTML for groups
     let groupsHtml = '';
@@ -787,12 +1087,10 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
           </div>
         </div>
         <div class="container">
-          <div class="header" onclick="changeTeam()">
-            <svg class="header-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/>
-            </svg>
-            <span class="header-text">${this.escapeHtml(this.selectedTeamCsv ?? '')} • Click to change</span>
-            <button class="header-action" title="Clear team" onclick="event.stopPropagation(); clearTeam()">
+          <div class="header" onclick="${changeAction}()">
+            ${headerIcon}
+            <span class="header-text">${this.escapeHtml(headerLabel)} • Click to change</span>
+            <button class="header-action" title="Clear selection" onclick="event.stopPropagation(); ${clearAction}()">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
             </button>
             <button class="header-action" title="Refresh" onclick="event.stopPropagation(); refresh()">
@@ -803,17 +1101,17 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
         </div>
         <script>
           const vscode = acquireVsCodeApi();
-          
+
           const icons = {
             story: \`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="12" height="12" rx="2" fill="#4CAF50"/><path d="M5 8L7 10L11 6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>\`,
             defect: \`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="12" height="12" rx="2" fill="#F44336"/><circle cx="8" cy="8" r="3" stroke="white" stroke-width="1.5"/></svg>\`,
             ticket: \`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="3" width="12" height="10" rx="2" fill="#2196F3"/><path d="M5 6H11M5 9H9" stroke="white" stroke-width="1.2" stroke-linecap="round"/></svg>\`
           };
-          
+
           const searchInput = document.getElementById('searchInput');
           const clearBtn = document.getElementById('clearBtn');
           const ticketsContent = document.getElementById('ticketsContent');
-          
+
           let debounceTimer;
           searchInput.addEventListener('input', (e) => {
             clearTimeout(debounceTimer);
@@ -821,19 +1119,19 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
               vscode.postMessage({ type: 'filter', filter: e.target.value });
             }, 200);
           });
-          
+
           clearBtn.addEventListener('click', () => {
             searchInput.value = '';
             clearBtn.style.display = 'none';
             vscode.postMessage({ type: 'filter', filter: '' });
           });
-          
+
           function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
           }
-          
+
           function renderGroups(groups, hasFilter) {
             if (groups.length === 0) {
               return \`
@@ -843,16 +1141,16 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
                 </div>
               \`;
             }
-            
+
             return groups.map(group => {
               const ticketsHtml = group.tickets.map(t => {
                 const firstChar = t.label.charAt(0).toUpperCase();
                 let iconSvg = icons.ticket;
                 if (firstChar === 'S') iconSvg = icons.story;
                 else if (firstChar === 'D') iconSvg = icons.defect;
-                
+
                 const ticketData = JSON.stringify(t).replace(/'/g, "\\\\'");
-                
+
                 return \`
                   <div class="ticket" onclick='openTicket(\${ticketData})'>
                     <span class="ticket-icon">\${iconSvg}</span>
@@ -868,7 +1166,7 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
                   </div>
                 \`;
               }).join('');
-              
+
               return \`
                 <div class="status-group">
                   <div class="status-header" onclick="toggleGroup(this)">
@@ -884,7 +1182,7 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
               \`;
             }).join('');
           }
-          
+
           // Handle messages from the extension
           window.addEventListener('message', event => {
             const message = event.data;
@@ -893,34 +1191,42 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
               clearBtn.style.display = message.hasFilter ? 'flex' : 'none';
             }
           });
-          
+
           function toggleGroup(header) {
             const chevron = header.querySelector('.chevron');
             const tickets = header.nextElementSibling;
             chevron.classList.toggle('collapsed');
             tickets.classList.toggle('collapsed');
           }
-          
+
           function openTicket(ticket) {
             vscode.postMessage({ type: 'openTicket', ticket });
           }
-          
+
           function openInBrowser(url) {
             vscode.postMessage({ type: 'openInBrowser', url });
           }
-          
+
           function createBranch(ticket) {
             vscode.postMessage({ type: 'createBranch', ticket });
           }
-          
+
+          function changeMember() {
+            vscode.postMessage({ type: 'changeMember' });
+          }
+
+          function clearMember() {
+            vscode.postMessage({ type: 'clearMember' });
+          }
+
           function changeTeam() {
             vscode.postMessage({ type: 'changeTeam' });
           }
-          
+
           function clearTeam() {
             vscode.postMessage({ type: 'clearTeam' });
           }
-          
+
           function refresh() {
             vscode.postMessage({ type: 'refresh' });
           }
@@ -928,5 +1234,10 @@ export class TeamWebviewProvider implements vscode.WebviewViewProvider {
       </body>
       </html>
     `;
+  }
+
+  private getMemberName(): string {
+    const member = this.members.find((m) => m.id === this.selectedMemberId);
+    return member?.name ?? 'Unknown';
   }
 }

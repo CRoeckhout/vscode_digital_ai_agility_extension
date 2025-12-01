@@ -1,16 +1,20 @@
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-const execP = promisify(exec);
-// Placeholder status id for "Dev in Progress" — replace with the real id for your Agility instance
-const DEV_IN_PROGRESS_STATUS_ID = '5453938';
-import { AgilityTicketProvider } from './tickets/provider';
-import { TeamWebviewProvider } from './tickets/teamWebviewProvider';
+import { TicketsWebviewProvider } from './tickets/ticketsWebviewProvider';
 import { createApi } from './agilityApi';
 import { openTicketDetail } from './views/ticketView';
-import axios from 'axios';
 
-export function registerCommands(context: vscode.ExtensionContext, provider: AgilityTicketProvider, teamProvider?: TeamWebviewProvider) {
+const execP = promisify(exec);
+
+// Placeholder status id for "Dev in Progress" — replace with the real id for your Agility instance
+const DEV_IN_PROGRESS_STATUS_ID = '5453938';
+
+export function registerCommands(
+    context: vscode.ExtensionContext,
+    myTicketsProvider: TicketsWebviewProvider,
+    teamTicketsProvider: TicketsWebviewProvider
+): void {
     // Helper: update a story's status via Agility REST endpoint
     async function updateStoryStatus(storyId: string, statusId: string): Promise<void> {
         const config = vscode.workspace.getConfiguration('agility');
@@ -29,11 +33,13 @@ export function registerCommands(context: vscode.ExtensionContext, provider: Agi
             await api.post(`/Data/Story/${storyId}`, xml, { headers: { 'Content-Type': 'text/xml; charset=utf-8' } });
             vscode.window.showInformationMessage('Ticket status updated (Data API).');
             // Refresh the tickets list so the UI reflects the new status
-            try { provider.refresh(); } catch { /* ignore if provider not available */ }
+            try { myTicketsProvider.refresh(); } catch { /* ignore if provider not available */ }
+            try { teamTicketsProvider.refresh(); } catch { /* ignore if provider not available */ }
             return;
-        } catch (err: any) {
-            const body = err?.response?.data;
-            const status = err?.response?.status;
+        } catch (err: unknown) {
+            const axiosError = err as { response?: { data?: unknown; status?: number }; message?: string };
+            const body = axiosError.response?.data;
+            const status = axiosError.response?.status;
             console.error('Data API update error', { status, body, err });
             // If server complains with 400, try attribute-style payload as documented
             if (status === 400) {
@@ -43,12 +49,14 @@ export function registerCommands(context: vscode.ExtensionContext, provider: Agi
                     await api2.post(`/Data/Story/${storyId}`, altXml, { headers: { 'Content-Type': 'text/xml; charset=utf-8' } });
                     vscode.window.showInformationMessage('Ticket status updated (Data API, attribute-style payload).');
                     // Refresh the tickets list so the UI reflects the new status
-                    try { provider.refresh(); } catch { /* ignore if provider not available */ }
+                    try { myTicketsProvider.refresh(); } catch { /* ignore if provider not available */ }
+                    try { teamTicketsProvider.refresh(); } catch { /* ignore if provider not available */ }
                     return;
-                } catch (err2: any) {
-                    const body2 = err2?.response?.data;
-                    const status2 = err2?.response?.status;
-                    const msg2 = err2?.message || String(err2);
+                } catch (err2: unknown) {
+                    const axiosError2 = err2 as { response?: { data?: unknown; status?: number }; message?: string };
+                    const body2 = axiosError2.response?.data;
+                    const status2 = axiosError2.response?.status;
+                    const msg2 = axiosError2.message ?? String(err2);
                     const details2 = body2 ? (typeof body2 === 'string' ? body2 : JSON.stringify(body2)) : msg2;
                     vscode.window.showErrorMessage(`Failed to update status via Data API (attribute fallback HTTP ${status2}): ${details2}`);
                     console.error('Data API attribute-fallback error', { status2, body2, err2 });
@@ -56,35 +64,41 @@ export function registerCommands(context: vscode.ExtensionContext, provider: Agi
                 }
             }
 
-            const msg = err?.message || String(err);
+            const msg = axiosError.message ?? String(err);
             const details = body ? (typeof body === 'string' ? body : JSON.stringify(body)) : msg;
-            vscode.window.showErrorMessage(`Failed to update status via Data API (HTTP ${status || 'n/a'}): ${details}`);
-            return;
+            vscode.window.showErrorMessage(`Failed to update status via Data API (HTTP ${status ?? 'n/a'}): ${details}`);
         }
     }
+
+    // Refresh command for My Tickets view
     context.subscriptions.push(
         vscode.commands.registerCommand('agility.refresh', () => {
-            provider['tickets'] = [];
-            provider.refresh();
+            myTicketsProvider.refresh();
         })
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('agility.openInBrowser', (arg: any) => {
+        vscode.commands.registerCommand('agility.openInBrowser', (arg: unknown) => {
             let url: string | undefined;
-            if (typeof arg === 'string') { url = arg; }
-            else if (arg && typeof arg === 'object') { url = (arg as any).url; }
-            if (url) { vscode.env.openExternal(vscode.Uri.parse(url)); }
+            if (typeof arg === 'string') {
+                url = arg;
+            } else if (arg && typeof arg === 'object') {
+                url = (arg as { url?: string }).url;
+            }
+            if (url) {
+                vscode.env.openExternal(vscode.Uri.parse(url));
+            }
         })
     );
 
     // Open ticket details inside a WebviewPanel
     context.subscriptions.push(
-        vscode.commands.registerCommand('agility.openTicket', async (arg: any) => {
+        vscode.commands.registerCommand('agility.openTicket', async (arg: unknown) => {
             try {
                 await openTicketDetail(context, arg);
-            } catch (err: any) {
-                vscode.window.showErrorMessage(`Failed to open ticket: ${err?.message || err}`);
+            } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : String(err);
+                vscode.window.showErrorMessage(`Failed to open ticket: ${message}`);
             }
         })
     );
@@ -253,7 +267,9 @@ export function registerCommands(context: vscode.ExtensionContext, provider: Agi
                 ignoreFocusOut: true,
                 value: config.get('instanceUrl') as string
             });
-            if (url !== undefined) { await config.update('instanceUrl', url?.trim(), true); }
+            if (url !== undefined) {
+                await config.update('instanceUrl', url?.trim(), true);
+            }
 
             const token = await vscode.window.showInputBox({
                 title: 'Personal Access Token',
@@ -261,55 +277,47 @@ export function registerCommands(context: vscode.ExtensionContext, provider: Agi
                 ignoreFocusOut: true,
                 placeHolder: 'pat:...'
             });
-            if (token !== undefined) { await config.update('accessToken', token?.trim(), true); }
+            if (token !== undefined) {
+                await config.update('accessToken', token?.trim(), true);
+            }
 
-            if (url || token) {
+            if (url ?? token) {
                 vscode.window.showInformationMessage('Agility configured! Refresh tickets to load.');
-                provider['tickets'] = [];
-                provider.refresh();
+                myTicketsProvider.refresh();
+                teamTicketsProvider.refresh();
             }
         })
     );
 
-    context.subscriptions.push(
-        vscode.commands.registerCommand('agility-helper.uploadCert', () => (provider as any).uploadCustomCert())
-    );
-
+    // My Tickets commands
     context.subscriptions.push(
         vscode.commands.registerCommand('agility.changeMember', () => {
-            (provider as any).changeMember();
+            myTicketsProvider.changeMember();
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('agility.clearMember', () => {
-            (provider as any).clearMember();
+            myTicketsProvider.clearMember();
         })
     );
 
-    // Filter commands for member view
-    context.subscriptions.push(
-        vscode.commands.registerCommand('agility.filterTickets', () => {
-            try { (provider as any).changeFilter(); } catch { /* ignore */ }
-        })
-    );
-
-    // Team commands (if team provider was registered)
+    // Team commands
     context.subscriptions.push(
         vscode.commands.registerCommand('agility.changeTeam', () => {
-            if (teamProvider) { teamProvider.changeTeam(); }
+            teamTicketsProvider.changeTeam();
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('agility.clearTeam', () => {
-            if (teamProvider) { teamProvider.clearTeam(); }
+            teamTicketsProvider.clearTeam();
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('agility-team.refresh', () => {
-            if (teamProvider) { teamProvider.refresh(); }
+            teamTicketsProvider.refresh();
         })
     );
 }
