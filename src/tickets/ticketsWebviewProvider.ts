@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { createApi } from '../agilityApi';
-import { ignoredStatuses } from '../constants/ignored-status';
 import { colors, unknownColor } from '../constants/colors';
 import { getStatusConfig } from '../statusService';
 
@@ -469,11 +468,6 @@ export class TicketsWebviewProvider implements vscode.WebviewViewProvider {
 
   private async loadTickets(baseUrl: string, token: string): Promise<void> {
     const api = await createApi(baseUrl, token, this.context);
-    const ignoredStatusFilter = ignoredStatuses.reduce(
-      (acc, status, i) =>
-        acc + `Status!='StoryStatus:${status}'${i + 1 !== ignoredStatuses.length ? ';' : ''}`,
-      ''
-    );
 
     const runQuery = async (whereClause: string) => {
       return api.get('/Data/PrimaryWorkitem', {
@@ -490,14 +484,14 @@ export class TicketsWebviewProvider implements vscode.WebviewViewProvider {
     if (this.mode === 'my-tickets') {
       // Simple owner query for single member
       const ownersExpr = `Owners='Member:${this.selectedMemberId}'`;
-      const whereClause = `${ownersExpr}${ignoredStatusFilter.length ? `;${ignoredStatusFilter}` : ''}`;
+      const whereClause = `${ownersExpr}`;
       response = await runQuery(whereClause);
       const assets = (response.data.Assets ?? []) as Record<string, unknown>[];
       this.tickets = this.mapAssetsToTickets(assets, baseUrl);
     } else {
       // Team mode: query by Team OID
       const teamId = this.selectedTeamId ?? '';
-      const whereTeam = `Team='Team:${teamId}'${ignoredStatusFilter.length ? `;${ignoredStatusFilter}` : ''}`;
+      const whereTeam = `Team='Team:${teamId}'`;
       response = await runQuery(whereTeam);
       const assets = (response.data.Assets ?? []) as Record<string, unknown>[];
       this.tickets = this.mapAssetsToTickets(assets, baseUrl);
@@ -545,28 +539,39 @@ export class TicketsWebviewProvider implements vscode.WebviewViewProvider {
     const statusConfig = getStatusConfig();
 
     // Sort statuses by their configured order, with Unknown/unconfigured at the end
-    const statuses = Array.from(statusMap.keys()).sort((a, b) => {
-      // Unknown always goes last
-      if (a === 'Unknown' || a === '—') {
-        return 1;
-      }
-      if (b === 'Unknown' || b === '—') {
-        return -1;
-      }
+    // Also filter out hidden statuses
+    const statuses = Array.from(statusMap.keys())
+      .filter((s) => {
+        // Keep Unknown status
+        if (s === 'Unknown' || s === '—') {
+          return true;
+        }
+        // Check if status is hidden in config
+        const configEntry = Object.values(statusConfig).find((cfg) => cfg.name === s);
+        return !(configEntry?.hidden);
+      })
+      .sort((a, b) => {
+        // Unknown always goes last
+        if (a === 'Unknown' || a === '—') {
+          return 1;
+        }
+        if (b === 'Unknown' || b === '—') {
+          return -1;
+        }
 
-      // Find order from config by matching status name
-      const configA = Object.values(statusConfig).find((cfg) => cfg.name === a);
-      const configB = Object.values(statusConfig).find((cfg) => cfg.name === b);
+        // Find order from config by matching status name
+        const configA = Object.values(statusConfig).find((cfg) => cfg.name === a);
+        const configB = Object.values(statusConfig).find((cfg) => cfg.name === b);
 
-      const orderA = configA?.order ?? Number.MAX_SAFE_INTEGER;
-      const orderB = configB?.order ?? Number.MAX_SAFE_INTEGER;
+        const orderA = configA?.order ?? Number.MAX_SAFE_INTEGER;
+        const orderB = configB?.order ?? Number.MAX_SAFE_INTEGER;
 
-      // Sort by order, then alphabetically as fallback
-      if (orderA !== orderB) {
-        return orderA - orderB;
-      }
-      return a.localeCompare(b);
-    });
+        // Sort by order, then alphabetically as fallback
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+        return a.localeCompare(b);
+      });
 
     return statuses.map((s, idx) => {
       // Try to find configured color by matching status name

@@ -17,6 +17,7 @@ export interface StatusConfig {
   readonly color: string;
   readonly order: number;
   readonly isDevInProgress?: boolean;
+  readonly hidden?: boolean;
 }
 
 /**

@@ -57,16 +57,28 @@ class StatusTreeItem extends vscode.TreeItem {
   ) {
     super(statusConfig.name, vscode.TreeItemCollapsibleState.None);
 
+    const isHidden = statusConfig.hidden ?? false;
     const emoji = getColorEmoji(statusConfig.color);
     const starIcon = isDevInProgress ? ' ⭐' : '';
-    this.label = `${emoji} ${statusConfig.name}${starIcon}`;
-    this.description = statusConfig.color;
+    const hiddenIcon = isHidden ? ' 👁️‍🗨️' : '';
+    this.label = `${emoji} ${statusConfig.name}${starIcon}${hiddenIcon}`;
+    this.description = isHidden ? '(hidden)' : statusConfig.color;
     this.tooltip = new vscode.MarkdownString(
       `**${statusConfig.name}**\n\n` +
       `Color: \`${statusConfig.color}\`\n\n` +
-      (isDevInProgress ? '⭐ This status is used when creating branches' : '')
+      (isDevInProgress ? '⭐ This status is used when creating branches\n\n' : '') +
+      (isHidden ? '👁️‍🗨️ This status is hidden in ticket views' : '')
     );
-    this.contextValue = isDevInProgress ? 'status-devInProgress' : 'status';
+    
+    // Build context value for menu visibility
+    let ctxValue = 'status';
+    if (isDevInProgress) {
+      ctxValue += '-devInProgress';
+    }
+    if (isHidden) {
+      ctxValue += '-hidden';
+    }
+    this.contextValue = ctxValue;
 
     // Store the status config for commands
     this.command = undefined;
@@ -205,6 +217,27 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<vscode.TreeIt
     await saveStatusConfig(updatedConfig);
     vscode.window.showInformationMessage(
       `"${item.statusConfig.name}" is no longer the Dev in Progress status.`
+    );
+    this.refresh();
+  }
+
+  /**
+   * Toggle visibility of a status in ticket views
+   */
+  async toggleVisibility(item: StatusTreeItem): Promise<void> {
+    const isCurrentlyHidden = item.statusConfig.hidden ?? false;
+    const updatedConfig: StatusConfigMap = {
+      ...this.statusConfigs,
+      [item.statusConfig.id]: {
+        ...item.statusConfig,
+        hidden: !isCurrentlyHidden,
+      },
+    };
+
+    await saveStatusConfig(updatedConfig);
+    const action = isCurrentlyHidden ? 'visible' : 'hidden';
+    vscode.window.showInformationMessage(
+      `"${item.statusConfig.name}" is now ${action} in ticket views.`
     );
     this.refresh();
   }

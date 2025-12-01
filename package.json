@@ -123,6 +123,11 @@
         "command": "agility.status.changeColor",
         "title": "Change Color",
         "icon": "$(paintcan)"
+      },
+      {
+        "command": "agility.status.toggleVisibility",
+        "title": "Toggle Visibility",
+        "icon": "$(eye)"
       }
     ],
     "configuration": {
@@ -240,13 +245,18 @@
         },
         {
           "command": "agility.status.clearDevInProgress",
-          "when": "view == agility-status && viewItem == status-devInProgress",
+          "when": "view == agility-status && viewItem =~ /devInProgress/",
           "group": "inline@1"
         },
         {
           "command": "agility.status.changeColor",
           "when": "view == agility-status && viewItem =~ /^status/",
           "group": "inline@2"
+        },
+        {
+          "command": "agility.status.toggleVisibility",
+          "when": "view == agility-status && viewItem =~ /^status/",
+          "group": "inline@3"
         }
       ]
     }

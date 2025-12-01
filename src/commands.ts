@@ -647,6 +647,16 @@ export function registerCommands(
             }
         })
     );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility.status.toggleVisibility', async (item: unknown) => {
+            if (item && typeof item === 'object' && 'statusConfig' in item) {
+                await statusProvider.toggleVisibility(item as any);
+                myTicketsProvider.refresh();
+                teamTicketsProvider.refresh();
+            }
+        })
+    );
 }
 
 /**
