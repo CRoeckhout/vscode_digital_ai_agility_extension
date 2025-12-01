@@ -5,12 +5,12 @@ const execP = promisify(exec);
 // Placeholder status id for "Dev in Progress" — replace with the real id for your Agility instance
 const DEV_IN_PROGRESS_STATUS_ID = '5453938';
 import { AgilityTicketProvider } from './tickets/provider';
-import TeamTicketProvider from './tickets/teamProvider';
+import { TeamWebviewProvider } from './tickets/teamWebviewProvider';
 import { createApi } from './agilityApi';
 import { openTicketDetail } from './views/ticketView';
 import axios from 'axios';
 
-export function registerCommands(context: vscode.ExtensionContext, provider: AgilityTicketProvider, teamProvider?: TeamTicketProvider) {
+export function registerCommands(context: vscode.ExtensionContext, provider: AgilityTicketProvider, teamProvider?: TeamWebviewProvider) {
     // Helper: update a story's status via Agility REST endpoint
     async function updateStoryStatus(storyId: string, statusId: string): Promise<void> {
         const config = vscode.workspace.getConfiguration('agility');
@@ -287,29 +287,29 @@ export function registerCommands(context: vscode.ExtensionContext, provider: Agi
         })
     );
 
-    // Filter commands for member/team views
+    // Filter commands for member view
     context.subscriptions.push(
         vscode.commands.registerCommand('agility.filterTickets', () => {
             try { (provider as any).changeFilter(); } catch { /* ignore */ }
         })
     );
 
-    context.subscriptions.push(
-        vscode.commands.registerCommand('agility-team.filterTickets', () => {
-            if (teamProvider) { try { (teamProvider as any).changeFilter(); } catch { /* ignore */ } }
-        })
-    );
-
     // Team commands (if team provider was registered)
     context.subscriptions.push(
         vscode.commands.registerCommand('agility.changeTeam', () => {
-            if (teamProvider) { (teamProvider as any).changeTeam(); }
+            if (teamProvider) { teamProvider.changeTeam(); }
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('agility.clearTeam', () => {
-            if (teamProvider) { (teamProvider as any).clearTeam(); }
+            if (teamProvider) { teamProvider.clearTeam(); }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility-team.refresh', () => {
+            if (teamProvider) { teamProvider.refresh(); }
         })
     );
 }

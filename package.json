@@ -31,10 +31,10 @@
           "name": "My Tickets",
           "icon": "images/icon.png",
           "contextualTitle": "My Agility Tickets"
-        }
-        ,
+        },
         {
           "id": "agility-team",
+          "type": "webview",
           "name": "Team Tickets",
           "icon": "images/icon.png",
           "contextualTitle": "Team Agility Tickets"
