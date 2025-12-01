@@ -17,10 +17,53 @@ import { colorPresets } from './constants/colors';
 
 const execP = promisify(exec);
 
+/**
+ * Gets the closest emoji for a given hex color
+ */
+function getColorEmoji(hexColor: string): string {
+    // Find exact match first
+    const exactMatch = colorPresets.find((p) => p.color.toLowerCase() === hexColor.toLowerCase());
+    if (exactMatch) {
+        return exactMatch.emoji;
+    }
+
+    // Parse the hex color
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    // Find closest color by RGB distance
+    let closestPreset = colorPresets[0];
+    let minDistance = Infinity;
+
+    for (const preset of colorPresets) {
+        const pHex = preset.color.replace('#', '');
+        const pR = parseInt(pHex.substring(0, 2), 16);
+        const pG = parseInt(pHex.substring(2, 4), 16);
+        const pB = parseInt(pHex.substring(4, 6), 16);
+
+        const distance = Math.sqrt(
+            Math.pow(r - pR, 2) + Math.pow(g - pG, 2) + Math.pow(b - pB, 2)
+        );
+
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestPreset = preset;
+        }
+    }
+
+    return closestPreset.emoji;
+}
+
+// Import the StatusTreeProvider type for the function signature
+import type { StatusTreeProvider } from './views/statusTreeProvider';
+
 export function registerCommands(
     context: vscode.ExtensionContext,
     myTicketsProvider: TicketsWebviewProvider,
-    teamTicketsProvider: TicketsWebviewProvider
+    teamTicketsProvider: TicketsWebviewProvider,
+    statusProvider: StatusTreeProvider
 ): void {
     // Helper: update a ticket's status and add selected user as owner via Agility REST endpoint
     async function updateTicketStatus(ticketId: string, statusId: string, assetType: string): Promise<void> {
@@ -201,6 +244,7 @@ export function registerCommands(
                                                 id: selected.statusId,
                                                 name: statusInfo.name,
                                                 color: '#1f77b4',
+                                                order: statusInfo.order,
                                                 isDevInProgress: true,
                                             };
                                         }
@@ -477,7 +521,7 @@ export function registerCommands(
                 const statusItems = Object.values(mergedConfig)
                     .filter((cfg) => statuses.some((s) => s.id === cfg.id))
                     .map((cfg) => ({
-                        label: cfg.name,
+                        label: `${getColorEmoji(cfg.color)} ${cfg.name}`,
                         description: cfg.isDevInProgress ? '$(debug-start) Dev in Progress' : '',
                         detail: `Color: ${cfg.color}`,
                         statusConfig: cfg,
@@ -491,7 +535,7 @@ export function registerCommands(
                     return;
                 }
 
-                await configureStatus(selected.statusConfig, mergedConfig, myTicketsProvider, teamTicketsProvider);
+                await configureStatus(selected.statusConfig, mergedConfig, myTicketsProvider, teamTicketsProvider, statusProvider);
             } catch (err: unknown) {
                 const message = err instanceof Error ? err.message : String(err);
                 vscode.window.showErrorMessage(`Failed to configure statuses: ${message}`);
@@ -531,7 +575,7 @@ export function registerCommands(
                 const statusItems = Object.values(mergedConfig)
                     .filter((cfg) => statuses.some((s) => s.id === cfg.id))
                     .map((cfg) => ({
-                        label: cfg.name,
+                        label: `${getColorEmoji(cfg.color)} ${cfg.name}`,
                         description: cfg.isDevInProgress ? '$(check) Currently selected' : '',
                         statusConfig: cfg,
                     }));
@@ -559,9 +603,47 @@ export function registerCommands(
                 // Refresh views to reflect any changes
                 myTicketsProvider.refresh();
                 teamTicketsProvider.refresh();
+                statusProvider.refresh();
             } catch (err: unknown) {
                 const message = err instanceof Error ? err.message : String(err);
                 vscode.window.showErrorMessage(`Failed to set Dev in Progress status: ${message}`);
+            }
+        })
+    );
+
+    // Status view commands
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility.status.refresh', () => {
+            statusProvider.refresh();
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility.status.setDevInProgress', async (item: unknown) => {
+            if (item && typeof item === 'object' && 'statusConfig' in item) {
+                await statusProvider.setDevInProgress(item as any);
+                myTicketsProvider.refresh();
+                teamTicketsProvider.refresh();
+            }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility.status.clearDevInProgress', async (item: unknown) => {
+            if (item && typeof item === 'object' && 'statusConfig' in item) {
+                await statusProvider.clearDevInProgress(item as any);
+                myTicketsProvider.refresh();
+                teamTicketsProvider.refresh();
+            }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility.status.changeColor', async (item: unknown) => {
+            if (item && typeof item === 'object' && 'statusConfig' in item) {
+                await statusProvider.changeColor(item as any);
+                myTicketsProvider.refresh();
+                teamTicketsProvider.refresh();
             }
         })
     );
@@ -574,7 +656,8 @@ async function configureStatus(
     statusConfig: StatusConfig,
     allConfig: StatusConfigMap,
     myTicketsProvider: TicketsWebviewProvider,
-    teamTicketsProvider: TicketsWebviewProvider
+    teamTicketsProvider: TicketsWebviewProvider,
+    statusProvider: StatusTreeProvider
 ): Promise<void> {
     const actions = [
         { label: '$(paintcan) Change Color', action: 'color' as const },
@@ -639,6 +722,7 @@ async function configureStatus(
     // Refresh views
     myTicketsProvider.refresh();
     teamTicketsProvider.refresh();
+    statusProvider.refresh();
 }
 
 /**
@@ -661,7 +745,7 @@ async function showColorPicker(statusName: string, currentColor: string): Promis
             kind: vscode.QuickPickItemKind.Separator,
         },
         ...colorPresets.map((preset) => ({
-            label: `$(circle-filled) ${preset.name}`,
+            label: `${preset.emoji} ${preset.name}`,
             description: preset.color,
             detail: preset.color === currentColor ? '$(check) Current' : undefined,
             color: preset.color,

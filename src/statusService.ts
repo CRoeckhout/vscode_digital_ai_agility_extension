@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { createApi } from './agilityApi';
 import { StatusInfo, StatusConfig, StatusConfigMap } from './models/status';
-import { colors as defaultColors, unknownColor } from './constants/colors';
+import { colors as defaultColors, unknownColor, agilityColorToHex } from './constants/colors';
 
 /**
  * Gets the currently selected team ID from settings.
@@ -14,7 +14,7 @@ export function getSelectedTeamId(): string | null {
 
 /**
  * Fetches all available StoryStatus values from the Agility API,
- * filtered by the selected team.
+ * filtered by the selected team and sorted by Order.
  * @param context Extension context
  * @param teamId The team ID to filter statuses by
  */
@@ -32,11 +32,12 @@ export async function fetchStatuses(
 
   const api = await createApi(baseUrl, token, context);
 
-  // Query StoryStatus filtered by Team
+  // Query StoryStatus filtered by Team, including Order and ColorName
   const response = await api.get('/Data/StoryStatus', {
     params: {
-      select: 'Name',
+      select: 'Name,Order,ColorName',
       where: `Team='Team:${teamId}'`,
+      sort: 'Order',
     },
   });
 
@@ -58,6 +59,8 @@ export async function fetchStatuses(
     return {
       id,
       name: (attrs.Name as string) ?? 'Unknown',
+      order: Number(attrs.Order) || 0,
+      colorName: (attrs.ColorName as string) ?? undefined,
     };
   });
 }
@@ -137,10 +140,16 @@ export function generateInitialStatusConfig(
   const result: StatusConfigMap = {};
 
   statuses.forEach((status, index) => {
+    // Use Agility's ColorName if available, otherwise fall back to default colors
+    const color = status.colorName
+      ? agilityColorToHex(status.colorName)
+      : defaultColors[index % defaultColors.length] ?? unknownColor;
+
     result[status.id] = {
       id: status.id,
       name: status.name,
-      color: defaultColors[index % defaultColors.length] ?? unknownColor,
+      color,
+      order: status.order,
       isDevInProgress: false,
     };
   });
@@ -150,7 +159,8 @@ export function generateInitialStatusConfig(
 
 /**
  * Merges fetched statuses with existing configuration.
- * Preserves colors and flags for known statuses, adds new ones with defaults.
+ * Preserves colors and flags for known statuses, adds new ones with Agility colors or defaults.
+ * Always updates the order from the fetched status.
  */
 export function mergeStatusConfig(
   existingConfig: StatusConfigMap,
@@ -161,18 +171,25 @@ export function mergeStatusConfig(
 
   for (const status of fetchedStatuses) {
     if (!result[status.id]) {
+      // Use Agility's ColorName if available, otherwise fall back to default colors
+      const color = status.colorName
+        ? agilityColorToHex(status.colorName)
+        : defaultColors[newStatusIndex % defaultColors.length] ?? unknownColor;
+
       result[status.id] = {
         id: status.id,
         name: status.name,
-        color: defaultColors[newStatusIndex % defaultColors.length] ?? unknownColor,
+        color,
+        order: status.order,
         isDevInProgress: false,
       };
       newStatusIndex++;
     } else {
-      // Update name in case it changed, keep color and flags
+      // Update name and order in case they changed, keep color and flags
       result[status.id] = {
         ...result[status.id],
         name: status.name,
+        order: status.order,
       };
     }
   }

@@ -33,6 +33,7 @@ interface MemberInfo {
   readonly id: string;
   readonly name: string;
   readonly username: string;
+  readonly order: number;
 }
 
 /**
@@ -41,6 +42,7 @@ interface MemberInfo {
 interface TeamInfo {
   readonly id: string;
   readonly name: string;
+  readonly order: number;
 }
 
 /**
@@ -406,7 +408,9 @@ export class TicketsWebviewProvider implements vscode.WebviewViewProvider {
     try {
       const api = await createApi(baseUrl, token, this.context);
       const res = await api.get('/Data/Member', {
-        params: { select: 'Name,Username' },
+        params: { 
+          select: 'Name,Username',
+        },
       });
 
       this.members = (res.data.Assets ?? [])
@@ -422,6 +426,7 @@ export class TicketsWebviewProvider implements vscode.WebviewViewProvider {
             id: String(a.id ?? '').split(':')[1] ?? '',
             name: (attrs.Name as string) ?? (attrs.Username as string) ?? '',
             username: (attrs.Username as string) ?? '—',
+            order: 0,
           };
         })
         .sort((a: MemberInfo, b: MemberInfo) => a.name.localeCompare(b.name));
@@ -435,7 +440,9 @@ export class TicketsWebviewProvider implements vscode.WebviewViewProvider {
     try {
       const api = await createApi(baseUrl, token, this.context);
       const res = await api.get('/Data/Team', {
-        params: { select: 'Name' },
+        params: { 
+          select: 'Name',
+        },
       });
 
       this.teams = (res.data.Assets ?? [])
@@ -450,6 +457,7 @@ export class TicketsWebviewProvider implements vscode.WebviewViewProvider {
           return {
             id: String(a.id ?? '').split(':')[1] ?? '',
             name: (attrs.Name as string) ?? 'Unnamed Team',
+            order: 0,
           };
         })
         .sort((a: TeamInfo, b: TeamInfo) => a.name.localeCompare(b.name));
@@ -536,7 +544,30 @@ export class TicketsWebviewProvider implements vscode.WebviewViewProvider {
     // Get configured status colors
     const statusConfig = getStatusConfig();
 
-    const statuses = Array.from(statusMap.keys()).sort((a, b) => a.localeCompare(b));
+    // Sort statuses by their configured order, with Unknown/unconfigured at the end
+    const statuses = Array.from(statusMap.keys()).sort((a, b) => {
+      // Unknown always goes last
+      if (a === 'Unknown' || a === '—') {
+        return 1;
+      }
+      if (b === 'Unknown' || b === '—') {
+        return -1;
+      }
+
+      // Find order from config by matching status name
+      const configA = Object.values(statusConfig).find((cfg) => cfg.name === a);
+      const configB = Object.values(statusConfig).find((cfg) => cfg.name === b);
+
+      const orderA = configA?.order ?? Number.MAX_SAFE_INTEGER;
+      const orderB = configB?.order ?? Number.MAX_SAFE_INTEGER;
+
+      // Sort by order, then alphabetically as fallback
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return a.localeCompare(b);
+    });
+
     return statuses.map((s, idx) => {
       // Try to find configured color by matching status name
       let color = unknownColor;

@@ -4,6 +4,8 @@
 export interface StatusInfo {
   readonly id: string;
   readonly name: string;
+  readonly order: number;
+  readonly colorName?: string;
 }
 
 /**
@@ -13,6 +15,7 @@ export interface StatusConfig {
   readonly id: string;
   readonly name: string;
   readonly color: string;
+  readonly order: number;
   readonly isDevInProgress?: boolean;
 }
 

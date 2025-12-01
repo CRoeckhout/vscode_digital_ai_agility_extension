@@ -39,9 +39,15 @@
           "name": "Team Tickets",
           "icon": "images/icon.png",
           "contextualTitle": "Team Agility Tickets"
+        },
+        {
+          "id": "agility-status",
+          "name": "Status Configuration",
+          "icon": "images/icon.png",
+          "contextualTitle": "Status Colors & Dev in Progress"
         }
       ]
-    },
+    }, 
     "commands": [
       {
         "command": "agility-helper.configure",
@@ -97,6 +103,26 @@
       {
         "command": "agility.setDevInProgressStatus",
         "title": "Agility: Set Dev in Progress Status"
+      },
+      {
+        "command": "agility.status.refresh",
+        "title": "Refresh Status List",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "agility.status.setDevInProgress",
+        "title": "Set as Dev in Progress",
+        "icon": "$(debug-start)"
+      },
+      {
+        "command": "agility.status.clearDevInProgress",
+        "title": "Clear Dev in Progress",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "agility.status.changeColor",
+        "title": "Change Color",
+        "icon": "$(paintcan)"
       }
     ],
     "configuration": {
@@ -169,6 +195,11 @@
           "command": "agility.refresh",
           "when": "view == agility",
           "group": "navigation"
+        },
+        {
+          "command": "agility.status.refresh",
+          "when": "view == agility-status",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -201,6 +232,21 @@
           "command": "agility.clearTeam",
           "when": "view == agility-team && viewItem == teamHeader",
           "group": "inline"
+        },
+        {
+          "command": "agility.status.setDevInProgress",
+          "when": "view == agility-status && viewItem == status",
+          "group": "inline@1"
+        },
+        {
+          "command": "agility.status.clearDevInProgress",
+          "when": "view == agility-status && viewItem == status-devInProgress",
+          "group": "inline@1"
+        },
+        {
+          "command": "agility.status.changeColor",
+          "when": "view == agility-status && viewItem =~ /^status/",
+          "group": "inline@2"
         }
       ]
     }
