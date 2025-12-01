@@ -15,8 +15,8 @@ export function registerCommands(
     myTicketsProvider: TicketsWebviewProvider,
     teamTicketsProvider: TicketsWebviewProvider
 ): void {
-    // Helper: update a story's status via Agility REST endpoint
-    async function updateStoryStatus(storyId: string, statusId: string): Promise<void> {
+    // Helper: update a ticket's status and add selected user as owner via Agility REST endpoint
+    async function updateTicketStatus(ticketId: string, statusId: string, assetType: string): Promise<void> {
         const config = vscode.workspace.getConfiguration('agility');
         const instanceUrl = (config.get('instanceUrl') as string) || '';
         const token = (config.get('accessToken') as string) || '';
@@ -26,12 +26,40 @@ export function registerCommands(
             return;
         }
 
-        // Only POST to the Data API asset URL to update the Story
+        // Determine the correct endpoint based on asset type (Story or Defect)
+        const endpoint = assetType === 'Defect' ? 'Defect' : 'Story';
+
+        // Only POST to the Data API asset URL to update the ticket
         try {
             const api = await createApi(instanceUrl.replace(/\/$/, ''), token, context);
-            const xml = `<Asset>\n  <Relation name="Status" act="set">\n    <Asset idref="StoryStatus:${statusId}" />\n  </Relation>\n</Asset>`;
-            await api.post(`/Data/Story/${storyId}`, xml, { headers: { 'Content-Type': 'text/xml; charset=utf-8' } });
-            vscode.window.showInformationMessage('Ticket status updated (Data API).');
+
+            // Get the selected member ID from the "My Tickets" view
+            const selectedMemberId = myTicketsProvider.getSelectedMemberId();
+            console.log('Selected Member ID:', selectedMemberId);
+
+            // Build XML payload: update status and add selected user as owner
+            let xml = `<Asset>
+  <Relation name="Status" act="set">
+    <Asset idref="StoryStatus:${statusId}" />
+  </Relation>`;
+
+            if (selectedMemberId) {
+                // For multi-value relations, act="add" goes on the inner Asset element
+                xml += `
+  <Relation name="Owners">
+    <Asset idref="Member:${selectedMemberId}" act="add" />
+  </Relation>`;
+            } else {
+                console.log('No member selected in My Tickets view - owner will not be added');
+            }
+
+            xml += '\n</Asset>';
+            console.log('XML payload:', xml);
+            console.log('Endpoint:', `/Data/${endpoint}/${ticketId}`);
+
+            await api.post(`/Data/${endpoint}/${ticketId}`, xml, { headers: { 'Content-Type': 'text/xml; charset=utf-8' } });
+            const ownerMsg = selectedMemberId ? ' and added you as owner' : '';
+            vscode.window.showInformationMessage(`Ticket status updated${ownerMsg}.`);
             // Refresh the tickets list so the UI reflects the new status
             try { myTicketsProvider.refresh(); } catch { /* ignore if provider not available */ }
             try { teamTicketsProvider.refresh(); } catch { /* ignore if provider not available */ }
@@ -46,7 +74,7 @@ export function registerCommands(
                 try {
                     const api2 = await createApi(instanceUrl.replace(/\/$/, ''), token, context);
                     const altXml = `<Asset>\n  <Attribute name="Status" act="set">StoryStatus:${statusId}</Attribute>\n</Asset>`;
-                    await api2.post(`/Data/Story/${storyId}`, altXml, { headers: { 'Content-Type': 'text/xml; charset=utf-8' } });
+                    await api2.post(`/Data/${endpoint}/${ticketId}`, altXml, { headers: { 'Content-Type': 'text/xml; charset=utf-8' } });
                     vscode.window.showInformationMessage('Ticket status updated (Data API, attribute-style payload).');
                     // Refresh the tickets list so the UI reflects the new status
                     try { myTicketsProvider.refresh(); } catch { /* ignore if provider not available */ }
@@ -110,15 +138,20 @@ export function registerCommands(
             let ticketNumber: string | undefined;
             let label: string | undefined;
             let assetId: string | undefined;
+            let assetType: string = 'Story'; // Default to Story
 
             if (typeof arg === 'string') {
-                // Try to extract ticket number from url, fallback to ask
-                const m = arg.match(/\/(?:Story|Ticket|Defect)?\/?(\d+)/i);
-                ticketNumber = m ? m[1] : undefined;
+                // Try to extract ticket number and type from url, fallback to ask
+                const m = arg.match(/\/(Story|Defect)?\/?(\d+)/i);
+                if (m) {
+                    assetType = m[1] || 'Story';
+                    ticketNumber = m[2];
+                }
             } else if (arg && typeof arg === 'object') {
                 ticketNumber = arg.number || arg.id || undefined;
                 label = arg.label || arg.name || undefined;
                 assetId = (arg as any).assetId || undefined;
+                assetType = (arg as any).assetType || 'Story';
                 // sometimes TreeItem passes arguments array; handle that
                 if (!ticketNumber && Array.isArray(arg)) {
                     ticketNumber = arg[0];
@@ -141,8 +174,8 @@ export function registerCommands(
                 let t = s.toLowerCase();
                 // remove anything in brackets
                 t = t.replace(/\[.*?\]/g, '');
-                // remove leading ticket identifiers like S-12345, s_12345, 12345, or prefixes like "s 12345"
-                t = t.replace(/^(s[-_\s]?\d+\b)[:\-\s_]*/i, '');
+                // remove leading ticket identifiers like S-12345, D-12345, s_12345, d_12345, 12345, or prefixes like "s 12345", "d 12345"
+                t = t.replace(/^([sd][-_\s]?\d+\b)[:\-\s_]*/i, '');
                 t = t.replace(/^(\d+\b)[:\-\s_]*/i, '');
                 // normalize to underscores
                 t = t.replace(/[^a-z0-9]+/g, '_');
@@ -151,13 +184,13 @@ export function registerCommands(
                 return t;
             };
 
-            // Remove any occurrences of the ticket number (variants like S-12345, s_12345, or plain digits)
+            // Remove any occurrences of the ticket number (variants like S-12345, D-12345, s_12345, d_12345, or plain digits)
             let titleForSlug = label || '';
             if (ticketNumber) {
                 const digits = ticketNumber.replace(/\D/g, '');
                 if (digits) {
-                    // remove variants like 'S-12345', 's_12345', '12345' anywhere in the title
-                    titleForSlug = titleForSlug.replace(new RegExp(`(s[-_\\s]?${digits}|${digits})`, 'ig'), '');
+                    // remove variants like 'S-12345', 'D-12345', 's_12345', 'd_12345', '12345' anywhere in the title
+                    titleForSlug = titleForSlug.replace(new RegExp(`([sd][-_\\s]?${digits}|${digits})`, 'ig'), '');
                 }
             }
 
@@ -240,12 +273,12 @@ export function registerCommands(
                 // Create branch and checkout
                 await repo.createBranch(branchName, true);
                 vscode.window.showInformationMessage(`Created and checked out branch '${branchName}'`);
-                // After creating the branch, attempt to update the story status to Dev in Progress
+                // After creating the branch, attempt to update the ticket status to Dev in Progress
                 try {
                     // Prefer the internal assetId (numeric internal ID) if available; fall back to digits parsed from the displayed ticket number
-                    const storyId = assetId || (ticketNumber || '').replace(/\D/g, '');
-                    if (storyId) {
-                        await updateStoryStatus(storyId, DEV_IN_PROGRESS_STATUS_ID);
+                    const ticketId = assetId || (ticketNumber || '').replace(/\D/g, '');
+                    if (ticketId) {
+                        await updateTicketStatus(ticketId, DEV_IN_PROGRESS_STATUS_ID, assetType);
                     }
                 } catch (updErr: any) {
                     // Don't block branch creation if status update fails

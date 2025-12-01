@@ -126,6 +126,14 @@ export class TicketsWebviewProvider implements vscode.WebviewViewProvider {
     this.updateWebview();
   }
 
+  /**
+   * Returns the currently selected member ID (for "My Tickets" mode).
+   * Used by commands to assign the selected user as owner.
+   */
+  getSelectedMemberId(): string | null {
+    return this.selectedMemberId;
+  }
+
   // === Public methods for commands ===
 
   async changeMember(): Promise<void> {
