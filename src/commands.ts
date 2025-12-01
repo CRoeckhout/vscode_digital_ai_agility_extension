@@ -287,6 +287,19 @@ export function registerCommands(context: vscode.ExtensionContext, provider: Agi
         })
     );
 
+    // Filter commands for member/team views
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility.filterTickets', () => {
+            try { (provider as any).changeFilter(); } catch { /* ignore */ }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility-team.filterTickets', () => {
+            if (teamProvider) { try { (teamProvider as any).changeFilter(); } catch { /* ignore */ } }
+        })
+    );
+
     // Team commands (if team provider was registered)
     context.subscriptions.push(
         vscode.commands.registerCommand('agility.changeTeam', () => {

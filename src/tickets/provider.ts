@@ -20,6 +20,7 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
     private tickets: TicketNode[] = [];
     private members: Member[] = [];
     private selectedMemberId: string | null = null;
+    private currentFilter: string | null = null;
     // Prevent re-entrant quick pick prompts when VS Code requests children repeatedly
     private selectingMember = false;
     private loading = false;
@@ -168,16 +169,49 @@ export class AgilityTicketProvider implements vscode.TreeDataProvider<any> {
         const currentMember = this.members.find(m => m.id === this.selectedMemberId);
         const header = buildHeader(currentMember);
 
+        // Add search/filter item when a member is selected
+        const searchItem = new vscode.TreeItem(
+            this.currentFilter ? `Filter: ${this.currentFilter}` : 'Filter tickets...',
+            vscode.TreeItemCollapsibleState.None
+        );
+        searchItem.command = { command: 'agility.filterTickets', title: 'Filter Tickets' };
+        searchItem.iconPath = new vscode.ThemeIcon('search');
+
         // If tickets are not TicketNode instances (error/no tickets message), return them as-is
         if (this.tickets.length === 0 || !(this.tickets[0] instanceof TicketNode)) {
-            return [header, ...this.tickets];
+            return [header, searchItem, ...this.tickets];
+        }
+
+        // Apply filter if present
+        const ticketsToShow = this.currentFilter && this.currentFilter.trim().length > 0
+            ? (this.tickets as TicketNode[]).filter(t => {
+                const q = this.currentFilter!.toLowerCase();
+                return [t.label, t.number, t.status, t.project].some(field => (field || '').toLowerCase().includes(q));
+            })
+            : (this.tickets as TicketNode[]);
+
+        if (ticketsToShow.length === 0) {
+            // show empty placeholder with a subtle SVG icon
+            const empty = new vscode.TreeItem('No tickets match filter', vscode.TreeItemCollapsibleState.None);
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><rect x="1" y="1" width="12" height="12" rx="2" fill="none" stroke="#888" stroke-width="1"/></svg>`;
+            empty.iconPath = vscode.Uri.parse(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`);
+            empty.contextValue = 'empty';
+            return [header, searchItem, empty];
         }
 
         // === 4. Group tickets by status and create status nodes using helpers ===
-        const statusMap = groupTicketsByStatus(this.tickets as TicketNode[]);
+        const statusMap = groupTicketsByStatus(ticketsToShow);
         const statusNodes = createStatusNodes(statusMap);
 
-        return [header, ...statusNodes];
+        return [header, searchItem, ...statusNodes];
+    }
+
+    // Called from commands to open input and set filter
+    async changeFilter() {
+        const input = await vscode.window.showInputBox({ prompt: 'Filter tickets (empty to clear)', value: this.currentFilter || '' });
+        if (input === undefined) { return; }
+        this.currentFilter = input.trim().length ? input.trim() : null;
+        this.refresh();
     }
 
     private async loadTeamMembers(baseUrl: string, token: string) {

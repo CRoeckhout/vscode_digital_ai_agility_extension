@@ -17,6 +17,7 @@ export class TeamTicketProvider implements vscode.TreeDataProvider<any> {
 
     private tickets: TicketNode[] = [];
     private selectedTeamCsv: string | null = null; // comma separated member ids or a single team id or member ids
+    private currentFilter: string | null = null;
     private loading = false;
 
     constructor(private context: vscode.ExtensionContext) {
@@ -156,14 +157,37 @@ export class TeamTicketProvider implements vscode.TreeDataProvider<any> {
 
         const header = buildTeamHeader(this.selectedTeamCsv || undefined);
 
+        // Add search/filter item when a team is selected
+        const searchItem = new vscode.TreeItem(
+            this.currentFilter ? `Filter: ${this.currentFilter}` : 'Filter tickets...',
+            vscode.TreeItemCollapsibleState.None
+        );
+        searchItem.command = { command: 'agility-team.filterTickets', title: 'Filter Tickets' };
+        searchItem.iconPath = new vscode.ThemeIcon('search');
+
         if (this.tickets.length === 0 || !(this.tickets[0] instanceof TicketNode)) {
-            return [header, ...this.tickets];
+            return [header, searchItem, ...this.tickets];
         }
 
-        const statusMap = groupTicketsByStatus(this.tickets as TicketNode[]);
+        const ticketsToShow = this.currentFilter && this.currentFilter.trim().length > 0
+            ? (this.tickets as TicketNode[]).filter(t => {
+                const q = this.currentFilter!.toLowerCase();
+                return [t.label, t.number, t.status, t.project].some(field => (field || '').toLowerCase().includes(q));
+            })
+            : (this.tickets as TicketNode[]);
+
+        if (ticketsToShow.length === 0) {
+            const empty = new vscode.TreeItem('No tickets match filter', vscode.TreeItemCollapsibleState.None);
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><rect x="1" y="1" width="12" height="12" rx="2" fill="none" stroke="#888" stroke-width="1"/></svg>`;
+            empty.iconPath = vscode.Uri.parse(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`);
+            empty.contextValue = 'empty';
+            return [header, searchItem, empty];
+        }
+
+        const statusMap = groupTicketsByStatus(ticketsToShow);
         const statusNodes = createStatusNodes(statusMap);
 
-        return [header, ...statusNodes];
+        return [header, searchItem, ...statusNodes];
     }
 
     async changeTeam() {
@@ -179,6 +203,14 @@ export class TeamTicketProvider implements vscode.TreeDataProvider<any> {
         await config.update('selectedTeam', entered?.trim() || null, true);
         this.selectedTeamCsv = entered?.trim() || null;
         this.tickets = [];
+        this.refresh();
+    }
+
+    // Called from commands to open input and set filter for team view
+    async changeFilter() {
+        const input = await vscode.window.showInputBox({ prompt: 'Filter tickets (empty to clear)', value: this.currentFilter || '' });
+        if (input === undefined) { return; }
+        this.currentFilter = input.trim().length ? input.trim() : null;
         this.refresh();
     }
 
