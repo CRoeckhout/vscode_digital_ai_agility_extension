@@ -13,6 +13,7 @@ import {
   mergeStatusConfig,
 } from './statusService';
 import { StatusConfig, StatusConfigMap } from './models/status';
+import { colorPresets } from './constants/colors';
 
 const execP = promisify(exec);
 
@@ -594,21 +595,10 @@ async function configureStatus(
     }
 
     if (selectedAction.action === 'color') {
-        // Show color input with hex format
-        const colorInput = await vscode.window.showInputBox({
-            title: `Set color for "${statusConfig.name}"`,
-            prompt: 'Enter a hex color (e.g., #1f77b4)',
-            value: statusConfig.color,
-            validateInput: (value) => {
-                const hexPattern = /^#[0-9A-Fa-f]{6}$/;
-                if (!hexPattern.test(value)) {
-                    return 'Please enter a valid hex color (e.g., #1f77b4)';
-                }
-                return null;
-            },
-        });
+        // Show color picker with presets and custom option
+        const selectedColor = await showColorPicker(statusConfig.name, statusConfig.color);
 
-        if (!colorInput) {
+        if (!selectedColor) {
             return;
         }
 
@@ -617,12 +607,12 @@ async function configureStatus(
             ...allConfig,
             [statusConfig.id]: {
                 ...statusConfig,
-                color: colorInput,
+                color: selectedColor,
             },
         };
 
         await saveStatusConfig(updatedConfig);
-        vscode.window.showInformationMessage(`Color for "${statusConfig.name}" updated to ${colorInput}`);
+        vscode.window.showInformationMessage(`Color for "${statusConfig.name}" updated to ${selectedColor}`);
     } else if (selectedAction.action === 'devInProgress') {
         // Toggle Dev in Progress status
         const newIsDevInProgress = !statusConfig.isDevInProgress;
@@ -649,4 +639,60 @@ async function configureStatus(
     // Refresh views
     myTicketsProvider.refresh();
     teamTicketsProvider.refresh();
+}
+
+/**
+ * Shows a color picker with preset colors and a custom color option
+ */
+async function showColorPicker(statusName: string, currentColor: string): Promise<string | undefined> {
+    interface ColorPickerItem extends vscode.QuickPickItem {
+        color?: string;
+        isCustom?: boolean;
+    }
+
+    const items: ColorPickerItem[] = [
+        {
+            label: '$(edit) Custom Color...',
+            description: 'Enter a hex color code',
+            isCustom: true,
+        },
+        {
+            label: '',
+            kind: vscode.QuickPickItemKind.Separator,
+        },
+        ...colorPresets.map((preset) => ({
+            label: `$(circle-filled) ${preset.name}`,
+            description: preset.color,
+            detail: preset.color === currentColor ? '$(check) Current' : undefined,
+            color: preset.color,
+        })),
+    ];
+
+    const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: `Select a color for "${statusName}"`,
+        title: `Current color: ${currentColor}`,
+    });
+
+    if (!selected) {
+        return undefined;
+    }
+
+    if (selected.isCustom) {
+        // Show input box for custom color
+        const colorInput = await vscode.window.showInputBox({
+            title: `Set custom color for "${statusName}"`,
+            prompt: 'Enter a hex color (e.g., #1f77b4)',
+            value: currentColor,
+            validateInput: (value) => {
+                const hexPattern = /^#[0-9A-Fa-f]{6}$/;
+                if (!hexPattern.test(value)) {
+                    return 'Please enter a valid hex color (e.g., #1f77b4)';
+                }
+                return null;
+            },
+        });
+        return colorInput;
+    }
+
+    return selected.color;
 }
