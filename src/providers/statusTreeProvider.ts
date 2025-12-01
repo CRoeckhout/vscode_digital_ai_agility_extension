@@ -1,51 +1,8 @@
 import * as vscode from 'vscode';
-import {
-  fetchStatuses,
-  getStatusConfig,
-  saveStatusConfig,
-  getSelectedTeamId,
-  mergeStatusConfig,
-} from '../statusService';
+import { fetchStatuses, mergeStatusConfig } from '../api/statusService';
+import { getStatusConfig, saveStatusConfig, getSelectedTeamId } from '../config';
 import { StatusConfig, StatusConfigMap } from '../models/status';
-import { colorPresets } from '../constants/colors';
-
-/**
- * Gets the closest emoji for a given hex color
- */
-function getColorEmoji(hexColor: string): string {
-  const exactMatch = colorPresets.find(
-    (p) => p.color.toLowerCase() === hexColor.toLowerCase()
-  );
-  if (exactMatch) {
-    return exactMatch.emoji;
-  }
-
-  const hex = hexColor.replace('#', '');
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-
-  let closestPreset = colorPresets[0];
-  let minDistance = Infinity;
-
-  for (const preset of colorPresets) {
-    const pHex = preset.color.replace('#', '');
-    const pR = parseInt(pHex.substring(0, 2), 16);
-    const pG = parseInt(pHex.substring(2, 4), 16);
-    const pB = parseInt(pHex.substring(4, 6), 16);
-
-    const distance = Math.sqrt(
-      Math.pow(r - pR, 2) + Math.pow(g - pG, 2) + Math.pow(b - pB, 2)
-    );
-
-    if (distance < minDistance) {
-      minDistance = distance;
-      closestPreset = preset;
-    }
-  }
-
-  return closestPreset.emoji;
-}
+import { getColorEmoji, showColorPicker } from '../utils';
 
 /**
  * TreeItem representing a status in the Status view
@@ -65,11 +22,11 @@ class StatusTreeItem extends vscode.TreeItem {
     this.description = isHidden ? '(hidden)' : statusConfig.color;
     this.tooltip = new vscode.MarkdownString(
       `**${statusConfig.name}**\n\n` +
-      `Color: \`${statusConfig.color}\`\n\n` +
-      (isDevInProgress ? '⭐ This status is used when creating branches\n\n' : '') +
-      (isHidden ? '👁️‍🗨️ This status is hidden in ticket views' : '')
+        `Color: \`${statusConfig.color}\`\n\n` +
+        (isDevInProgress ? '⭐ This status is used when creating branches\n\n' : '') +
+        (isHidden ? '👁️‍🗨️ This status is hidden in ticket views' : '')
     );
-    
+
     // Build context value for menu visibility
     let ctxValue = 'status';
     if (isDevInProgress) {
@@ -86,7 +43,7 @@ class StatusTreeItem extends vscode.TreeItem {
 }
 
 /**
- * Message item shown when no team is selected
+ * Message item shown when no team is selected or for error/info messages
  */
 class MessageTreeItem extends vscode.TreeItem {
   constructor(message: string, command?: vscode.Command) {
@@ -163,7 +120,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<vscode.TreeIt
 
       this.loading = false;
 
-      // Filter to only show statuses for the current team
+      // Map statuses to tree items
       return statuses.map((status) => {
         const cfg = this.statusConfigs[status.id];
         if (!cfg) {
@@ -246,7 +203,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<vscode.TreeIt
    * Change the color of a status
    */
   async changeColor(item: StatusTreeItem): Promise<void> {
-    const selectedColor = await this.showColorPicker(
+    const selectedColor = await showColorPicker(
       item.statusConfig.name,
       item.statusConfig.color
     );
@@ -268,63 +225,5 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<vscode.TreeIt
       `Color for "${item.statusConfig.name}" updated to ${selectedColor}`
     );
     this.refresh();
-  }
-
-  /**
-   * Shows a color picker with preset colors and a custom color option
-   */
-  private async showColorPicker(
-    statusName: string,
-    currentColor: string
-  ): Promise<string | undefined> {
-    interface ColorPickerItem extends vscode.QuickPickItem {
-      color?: string;
-      isCustom?: boolean;
-    }
-
-    const items: ColorPickerItem[] = [
-      {
-        label: '$(edit) Custom Color...',
-        description: 'Enter a hex color code',
-        isCustom: true,
-      },
-      {
-        label: '',
-        kind: vscode.QuickPickItemKind.Separator,
-      },
-      ...colorPresets.map((preset) => ({
-        label: `${preset.emoji} ${preset.name}`,
-        description: preset.color,
-        detail: preset.color === currentColor ? '$(check) Current' : undefined,
-        color: preset.color,
-      })),
-    ];
-
-    const selected = await vscode.window.showQuickPick(items, {
-      placeHolder: `Select a color for "${statusName}"`,
-      title: `Current color: ${currentColor}`,
-    });
-
-    if (!selected) {
-      return undefined;
-    }
-
-    if (selected.isCustom) {
-      const colorInput = await vscode.window.showInputBox({
-        title: `Set custom color for "${statusName}"`,
-        prompt: 'Enter a hex color (e.g., #1f77b4)',
-        value: currentColor,
-        validateInput: (value) => {
-          const hexPattern = /^#[0-9A-Fa-f]{6}$/;
-          if (!hexPattern.test(value)) {
-            return 'Please enter a valid hex color (e.g., #1f77b4)';
-          }
-          return null;
-        },
-      });
-      return colorInput;
-    }
-
-    return selected.color;
   }
 }

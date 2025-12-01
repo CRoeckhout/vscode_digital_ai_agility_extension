@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
-import { TicketsWebviewProvider } from './tickets/ticketsWebviewProvider';
-import { StatusTreeProvider } from './views/statusTreeProvider';
-import { registerCommands } from './commands';
+import { TicketsWebviewProvider, StatusTreeProvider } from './providers';
+import { registerCommands } from './commands/index';
 
 export function activate(context: vscode.ExtensionContext): void {
 	// Create unified providers for both views
@@ -16,7 +15,7 @@ export function activate(context: vscode.ExtensionContext): void {
 	// Register tree data provider for status
 	vscode.window.registerTreeDataProvider('agility-status', statusProvider);
 
-	// Register commands with all providers
+	// Register all commands with providers
 	registerCommands(context, myTicketsProvider, teamTicketsProvider, statusProvider);
 }
 
