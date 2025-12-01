@@ -4,11 +4,17 @@ import { promisify } from 'util';
 import { TicketsWebviewProvider } from './tickets/ticketsWebviewProvider';
 import { createApi } from './agilityApi';
 import { openTicketDetail } from './views/ticketView';
+import {
+  fetchStatuses,
+  getStatusConfig,
+  saveStatusConfig,
+  getDevInProgressStatusId,
+  getSelectedTeamId,
+  mergeStatusConfig,
+} from './statusService';
+import { StatusConfig, StatusConfigMap } from './models/status';
 
 const execP = promisify(exec);
-
-// Placeholder status id for "Dev in Progress" — replace with the real id for your Agility instance
-const DEV_IN_PROGRESS_STATUS_ID = '5453938';
 
 export function registerCommands(
     context: vscode.ExtensionContext,
@@ -134,6 +140,85 @@ export function registerCommands(
     // Create a git branch for a ticket. Expects the ticket node's url or an object with number and label.
     context.subscriptions.push(
         vscode.commands.registerCommand('agility.createBranch', async (arg: any) => {
+            // Check if Dev in Progress status is configured before proceeding
+            let devInProgressId = getDevInProgressStatusId();
+            if (!devInProgressId) {
+                // Check if a team is selected
+                const teamId = getSelectedTeamId();
+                if (!teamId) {
+                    const selectTeam = await vscode.window.showWarningMessage(
+                        'Please select a team first to configure the Dev in Progress status.',
+                        'Select Team',
+                        'Skip'
+                    );
+                    if (selectTeam === 'Select Team') {
+                        await vscode.commands.executeCommand('agility.changeTeam');
+                        return;
+                    } else if (selectTeam !== 'Skip') {
+                        return;
+                    }
+                } else {
+                    // Team is selected but no Dev in Progress status configured - prompt to select one
+                    const configureNow = await vscode.window.showWarningMessage(
+                        'No Dev in Progress status configured. Would you like to select one now?',
+                        'Select Status',
+                        'Skip'
+                    );
+
+                    if (configureNow === 'Select Status') {
+                        try {
+                            const statuses = await fetchStatuses(context, teamId);
+                            if (statuses.length === 0) {
+                                vscode.window.showWarningMessage('No statuses found for the selected team.');
+                            } else {
+                                const existingConfig = getStatusConfig();
+                                const mergedConfig = mergeStatusConfig(existingConfig, statuses);
+
+                                const statusItems = statuses.map((s) => ({
+                                    label: s.name,
+                                    statusId: s.id,
+                                }));
+
+                                const selected = await vscode.window.showQuickPick(statusItems, {
+                                    placeHolder: 'Select the status to use as "Dev in Progress"',
+                                });
+
+                                if (selected) {
+                                    // Update config with selected status as Dev in Progress
+                                    const updatedConfig: StatusConfigMap = {};
+                                    for (const [id, cfg] of Object.entries(mergedConfig)) {
+                                        updatedConfig[id] = {
+                                            ...cfg,
+                                            isDevInProgress: id === selected.statusId,
+                                        };
+                                    }
+                                    // Also add the selected status if not in config yet
+                                    if (!updatedConfig[selected.statusId]) {
+                                        const statusInfo = statuses.find((s) => s.id === selected.statusId);
+                                        if (statusInfo) {
+                                            updatedConfig[selected.statusId] = {
+                                                id: selected.statusId,
+                                                name: statusInfo.name,
+                                                color: '#1f77b4',
+                                                isDevInProgress: true,
+                                            };
+                                        }
+                                    }
+                                    await saveStatusConfig(updatedConfig);
+                                    devInProgressId = selected.statusId;
+                                    vscode.window.showInformationMessage(`"${selected.label}" is now the Dev in Progress status.`);
+                                }
+                            }
+                        } catch (err: unknown) {
+                            const message = err instanceof Error ? err.message : String(err);
+                            vscode.window.showErrorMessage(`Failed to fetch statuses: ${message}`);
+                        }
+                    } else if (configureNow !== 'Skip') {
+                        return;
+                    }
+                }
+            }
+
             // arg may be the url string (from TreeItem.command arguments) or the TicketNode object
             let ticketNumber: string | undefined;
             let label: string | undefined;
@@ -277,8 +362,9 @@ export function registerCommands(
                 try {
                     // Prefer the internal assetId (numeric internal ID) if available; fall back to digits parsed from the displayed ticket number
                     const ticketId = assetId || (ticketNumber || '').replace(/\D/g, '');
-                    if (ticketId) {
-                        await updateTicketStatus(ticketId, DEV_IN_PROGRESS_STATUS_ID, assetType);
+                    // Use the devInProgressId that was either pre-configured or just selected
+                    if (ticketId && devInProgressId) {
+                        await updateTicketStatus(ticketId, devInProgressId, assetType);
                     }
                 } catch (updErr: any) {
                     // Don't block branch creation if status update fails
@@ -353,4 +439,214 @@ export function registerCommands(
             teamTicketsProvider.refresh();
         })
     );
+
+    // Status configuration commands
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility.configureStatusColors', async () => {
+            try {
+                // Check if a team is selected
+                const teamId = getSelectedTeamId();
+                if (!teamId) {
+                    const selectTeam = await vscode.window.showWarningMessage(
+                        'Please select a team first. Statuses are team-specific.',
+                        'Select Team'
+                    );
+                    if (selectTeam === 'Select Team') {
+                        await vscode.commands.executeCommand('agility.changeTeam');
+                    }
+                    return;
+                }
+
+                // Fetch current statuses from Agility filtered by team
+                const statuses = await fetchStatuses(context, teamId);
+
+                if (statuses.length === 0) {
+                    vscode.window.showWarningMessage('No statuses found for the selected team. Please check your configuration.');
+                    return;
+                }
+
+                // Get or create status config
+                const existingConfig = getStatusConfig();
+                const mergedConfig = mergeStatusConfig(existingConfig, statuses);
+
+                // Save merged config (ensures all statuses are in settings)
+                await saveStatusConfig(mergedConfig);
+
+                // Let user select a status to configure
+                const statusItems = Object.values(mergedConfig)
+                    .filter((cfg) => statuses.some((s) => s.id === cfg.id))
+                    .map((cfg) => ({
+                        label: cfg.name,
+                        description: cfg.isDevInProgress ? '$(debug-start) Dev in Progress' : '',
+                        detail: `Color: ${cfg.color}`,
+                        statusConfig: cfg,
+                    }));
+
+                const selected = await vscode.window.showQuickPick(statusItems, {
+                    placeHolder: 'Select a status to configure its color or mark as Dev in Progress',
+                });
+
+                if (!selected) {
+                    return;
+                }
+
+                await configureStatus(selected.statusConfig, mergedConfig, myTicketsProvider, teamTicketsProvider);
+            } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : String(err);
+                vscode.window.showErrorMessage(`Failed to configure statuses: ${message}`);
+            }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('agility.setDevInProgressStatus', async () => {
+            try {
+                // Check if a team is selected
+                const teamId = getSelectedTeamId();
+                if (!teamId) {
+                    const selectTeam = await vscode.window.showWarningMessage(
+                        'Please select a team first. Statuses are team-specific.',
+                        'Select Team'
+                    );
+                    if (selectTeam === 'Select Team') {
+                        await vscode.commands.executeCommand('agility.changeTeam');
+                    }
+                    return;
+                }
+
+                // Fetch current statuses from Agility filtered by team
+                const statuses = await fetchStatuses(context, teamId);
+
+                if (statuses.length === 0) {
+                    vscode.window.showWarningMessage('No statuses found for the selected team. Please check your configuration.');
+                    return;
+                }
+
+                // Get or create status config
+                const existingConfig = getStatusConfig();
+                const mergedConfig = mergeStatusConfig(existingConfig, statuses);
+
+                // Let user select a status to mark as Dev in Progress (only show statuses for this team)
+                const statusItems = Object.values(mergedConfig)
+                    .filter((cfg) => statuses.some((s) => s.id === cfg.id))
+                    .map((cfg) => ({
+                        label: cfg.name,
+                        description: cfg.isDevInProgress ? '$(check) Currently selected' : '',
+                        statusConfig: cfg,
+                    }));
+
+                const selected = await vscode.window.showQuickPick(statusItems, {
+                    placeHolder: 'Select the status to use when creating a branch (Dev in Progress)',
+                });
+
+                if (!selected) {
+                    return;
+                }
+
+                // Update the config: clear previous Dev in Progress, set new one
+                const updatedConfig: StatusConfigMap = {};
+                for (const [id, cfg] of Object.entries(mergedConfig)) {
+                    updatedConfig[id] = {
+                        ...cfg,
+                        isDevInProgress: id === selected.statusConfig.id,
+                    };
+                }
+
+                await saveStatusConfig(updatedConfig);
+                vscode.window.showInformationMessage(`"${selected.label}" is now the Dev in Progress status.`);
+
+                // Refresh views to reflect any changes
+                myTicketsProvider.refresh();
+                teamTicketsProvider.refresh();
+            } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : String(err);
+                vscode.window.showErrorMessage(`Failed to set Dev in Progress status: ${message}`);
+            }
+        })
+    );
+}
+
+/**
+ * Helper function to configure a single status (color and Dev in Progress flag)
+ */
+async function configureStatus(
+    statusConfig: StatusConfig,
+    allConfig: StatusConfigMap,
+    myTicketsProvider: TicketsWebviewProvider,
+    teamTicketsProvider: TicketsWebviewProvider
+): Promise<void> {
+    const actions = [
+        { label: '$(paintcan) Change Color', action: 'color' as const },
+        {
+            label: statusConfig.isDevInProgress
+                ? '$(debug-stop) Unmark as Dev in Progress'
+                : '$(debug-start) Mark as Dev in Progress',
+            action: 'devInProgress' as const,
+        },
+    ];
+
+    const selectedAction = await vscode.window.showQuickPick(actions, {
+        placeHolder: `Configure "${statusConfig.name}"`,
+    });
+
+    if (!selectedAction) {
+        return;
+    }
+
+    if (selectedAction.action === 'color') {
+        // Show color input with hex format
+        const colorInput = await vscode.window.showInputBox({
+            title: `Set color for "${statusConfig.name}"`,
+            prompt: 'Enter a hex color (e.g., #1f77b4)',
+            value: statusConfig.color,
+            validateInput: (value) => {
+                const hexPattern = /^#[0-9A-Fa-f]{6}$/;
+                if (!hexPattern.test(value)) {
+                    return 'Please enter a valid hex color (e.g., #1f77b4)';
+                }
+                return null;
+            },
+        });
+
+        if (!colorInput) {
+            return;
+        }
+
+        // Update config with new color
+        const updatedConfig: StatusConfigMap = {
+            ...allConfig,
+            [statusConfig.id]: {
+                ...statusConfig,
+                color: colorInput,
+            },
+        };
+
+        await saveStatusConfig(updatedConfig);
+        vscode.window.showInformationMessage(`Color for "${statusConfig.name}" updated to ${colorInput}`);
+    } else if (selectedAction.action === 'devInProgress') {
+        // Toggle Dev in Progress status
+        const newIsDevInProgress = !statusConfig.isDevInProgress;
+
+        // If marking as Dev in Progress, clear others first
+        const updatedConfig: StatusConfigMap = {};
+        for (const [id, cfg] of Object.entries(allConfig)) {
+            if (id === statusConfig.id) {
+                updatedConfig[id] = { ...cfg, isDevInProgress: newIsDevInProgress };
+            } else {
+                updatedConfig[id] = { ...cfg, isDevInProgress: newIsDevInProgress ? false : cfg.isDevInProgress };
+            }
+        }
+
+        await saveStatusConfig(updatedConfig);
+
+        if (newIsDevInProgress) {
+            vscode.window.showInformationMessage(`"${statusConfig.name}" is now the Dev in Progress status.`);
+        } else {
+            vscode.window.showInformationMessage(`"${statusConfig.name}" is no longer the Dev in Progress status.`);
+        }
+    }
+
+    // Refresh views
+    myTicketsProvider.refresh();
+    teamTicketsProvider.refresh();
 }

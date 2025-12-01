@@ -84,12 +84,19 @@
         "command": "agility.clearMember",
         "title": "Clear selected member",
         "icon": "$(close)"
-      }
-      ,
+      },
       {
         "command": "agility.clearTeam",
         "title": "Clear selected team",
         "icon": "$(close)"
+      },
+      {
+        "command": "agility.configureStatusColors",
+        "title": "Agility: Configure Status Colors"
+      },
+      {
+        "command": "agility.setDevInProgressStatus",
+        "title": "Agility: Set Dev in Progress Status"
       }
     ],
     "configuration": {
@@ -120,6 +127,39 @@
             "type": ["string", "null"],
             "default": null,
             "description": "Persistently selected Team ID for the Team Tickets view (enter the numeric Team OID part, e.g. 12345)"
+          },
+          "agility.statusConfig": {
+            "type": "object",
+            "default": {},
+            "description": "Configuration for status colors and Dev in Progress flag. Populated automatically when using 'Configure Status Colors' command.",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "The status ID"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "The status name"
+                },
+                "color": {
+                  "type": "string",
+                  "description": "Hex color for this status (e.g., #1f77b4)",
+                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                },
+                "isDevInProgress": {
+                  "type": "boolean",
+                  "description": "If true, this status is used when creating a branch"
+                }
+              },
+              "required": ["id", "name", "color"]
+            }
+          },
+          "agility.devInProgressStatusId": {
+            "type": ["string", "null"],
+            "default": null,
+            "description": "Legacy: Status ID for 'Dev in Progress'. Prefer using 'Configure Status Colors' command instead."
           }
       }
     },

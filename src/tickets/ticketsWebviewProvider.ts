@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { createApi } from '../agilityApi';
 import { ignoredStatuses } from '../constants/ignored-status';
 import { colors, unknownColor } from '../constants/colors';
+import { getStatusConfig } from '../statusService';
 
 /**
  * Represents a single ticket (workitem) from Agility
@@ -532,9 +533,27 @@ export class TicketsWebviewProvider implements vscode.WebviewViewProvider {
       statusMap.get(key)!.push(t);
     }
 
+    // Get configured status colors
+    const statusConfig = getStatusConfig();
+
     const statuses = Array.from(statusMap.keys()).sort((a, b) => a.localeCompare(b));
     return statuses.map((s, idx) => {
-      const color = s === 'Unknown' ? unknownColor : colors[idx % colors.length] ?? unknownColor;
+      // Try to find configured color by matching status name
+      let color = unknownColor;
+
+      if (s === 'Unknown' || s === '—') {
+        color = unknownColor;
+      } else {
+        // Look for a matching status in config by name
+        const configEntry = Object.values(statusConfig).find((cfg) => cfg.name === s);
+        if (configEntry) {
+          color = configEntry.color;
+        } else {
+          // Fall back to default color cycling
+          color = colors[idx % colors.length] ?? unknownColor;
+        }
+      }
+
       return { status: s, color, tickets: statusMap.get(s)! };
     });
   }
