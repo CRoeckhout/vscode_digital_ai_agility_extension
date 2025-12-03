@@ -1,137 +1,220 @@
 # Digital.ai Agility Helper
 
-Digital.ai Agility Helper is a small VS Code extension that helps you manage Digital.ai Agility tickets directly from the editor. It adds an activity-bar view where you can see your tickets, open ticket details, open a ticket in the Agility web UI, create Git branches for tickets, and switch the selected team member.
-
-Images used by the extension live in the `images/` folder and are referenced from contributions in `package.json`.
+A VS Code extension to manage Digital.ai Agility tickets directly from your editor. View your tickets, open ticket details, create Git branches, and configure status colors — all without leaving VS Code.
 
 ## Features
 
-- Activity Bar explorer titled "Digital.ai Agility" with a "My Tickets" view
-- Commands provided (see Command Palette):
-	- Agility: Configure
-	- Agility: Show My Open Tickets
-	- Refresh
-	- Open in Agility
-	- Open ticket details
-	- Agility: Change Member
-	- Create Git Branch
-	- Clear selected member
-- Persistently store a selected team member via the `agility.selectedMember` setting
-- Open tickets in the browser and create git branches based on ticket identifiers
+### Views (Activity Bar → Digital.ai Agility)
+
+- **My Tickets** — View tickets assigned to a selected team member, grouped by status
+- **Team Tickets** — View all tickets for a selected team, grouped by status
+- **Status Configuration** — Configure status colors and set the "Dev in Progress" status
+
+### Commands (Command Palette: `Ctrl+Shift+P`)
+
+| Command | Description |
+|---------|-------------|
+| `Agility: Configure` | Set up your Agility instance URL and access token |
+| `Agility: Change Member` | Select a team member to filter "My Tickets" view |
+| `Agility: Change Team` | Select a team for the "Team Tickets" view |
+| `Agility: Configure Status Colors` | Customize status badge colors |
+| `Agility: Set Dev in Progress Status` | Choose which status to apply when creating branches |
+| `Create Git Branch` | Create a Git branch from a ticket (format: `<type>/<id>-<title>`) |
+| `Open in Agility` | Open the selected ticket in your browser |
+| `Refresh` | Refresh the ticket views |
+
+### Key Features
+
+- **Ticket grouping by status** with customizable colors
+- **Create Git branches** from tickets with automatic naming (`story/S-12345-ticket-title` or `defect/D-12345-fix-description`)
+- **Auto-update ticket status** to "Dev in Progress" when creating a branch
+- **Open ticket details** in a rich webview panel with description, acceptance criteria, and more
+- **Persistent selections** — your member and team selections are saved across sessions
 
 ## Quick Install
 
-1. Install the packaged extension (.vsix) from the Marketplace or local file. If you have a `.vsix` file:
+### From VSIX file
 
 ```powershell
 code --install-extension .\agility-helper-<version>.vsix
 ```
 
-2. Reload VS Code. The "Digital.ai Agility" icon should appear in the Activity Bar.
+### From Source
+
+```powershell
+git clone <repository-url>
+cd agility-helper
+npm install
+npm run compile
+# Press F5 to run in Extension Development Host
+```
 
 ## Configuration
 
-Open Settings (File → Preferences → Settings) and search for "Agility" or use the settings editor to set these values:
+Open **Settings** (`Ctrl+,`) and search for "Agility", or configure via `settings.json`:
 
-- `agility.instanceUrl` — Your Agility instance URL (e.g. https://www12.v1host.com/YourCompany)
-- `agility.accessToken` — Personal Access Token (stored securely via VS Code settings storage)
-- `agility.selectedMember` — Optional: the ID of a team member to filter the My Tickets view
+### Required Settings
 
-The extension contributes settings in `package.json` and validates the `instanceUrl` format.
+| Setting | Type | Description |
+|---------|------|-------------|
+| `agility.instanceUrl` | `string` | Your Agility instance URL (e.g., `https://www12.v1host.com/YourCompany`) |
+| `agility.accessToken` | `string` | Your Personal Access Token from Agility |
+
+### Optional Settings
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `agility.selectedMember` | `string \| null` | `null` | Team member ID for "My Tickets" view. Set via `Agility: Change Member` command. |
+| `agility.selectedTeam` | `string \| null` | `null` | Team ID for "Team Tickets" view. Set via `Agility: Change Team` command. |
+| `agility.statusConfig` | `object` | `{}` | Status color and visibility configuration. Auto-populated via Status Configuration view. |
+| `agility.devInProgressStatusId` | `string \| null` | `null` | *(Legacy)* Status ID for "Dev in Progress". Use Status Configuration view instead. |
+
+### Example `settings.json`
+
+```json
+{
+  "agility.instanceUrl": "https://www12.v1host.com/YourCompany",
+  "agility.accessToken": "your-personal-access-token",
+  "agility.selectedMember": "12345",
+  "agility.selectedTeam": "6789",
+  "agility.statusConfig": {
+    "12345": {
+      "id": "12345",
+      "name": "In Development",
+      "color": "#2ca02c",
+      "isDevInProgress": true,
+      "hidden": false
+    }
+  }
+}
+```
+
+## Getting Your Access Token
+
+1. Log into your Digital.ai Agility instance
+2. Go to your profile settings (click your avatar → **My Profile**)
+3. Navigate to **Applications** or **API Tokens**
+4. Create a new Personal Access Token
+5. Copy the token and paste it into the `agility.accessToken` setting
+
+> ⚠️ **Security Note**: Your access token is stored in VS Code's settings. Consider using VS Code's Settings Sync exclusions if you sync settings across machines.
 
 ## Usage
 
-1. Configure `agility.instanceUrl` and `agility.accessToken`.
-2. Use the Activity Bar → Digital.ai Agility → My Tickets to view tickets.
-3. Use the View title menu or item context menus to refresh, open in browser, or create a branch.
-4. Use the Command Palette (Ctrl+Shift+P) to run commands like "Agility: Configure" or "Create Git Branch".
+### Initial Setup
+
+1. Run `Agility: Configure` from the Command Palette
+2. Enter your Agility instance URL
+3. Enter your Personal Access Token
+4. Select a team member for "My Tickets" (or a team for "Team Tickets")
+
+### Viewing Tickets
+
+1. Click the **Digital.ai Agility** icon in the Activity Bar
+2. Your tickets appear grouped by status with color-coded badges
+3. Click a ticket to open its details in a panel
+4. Right-click for context menu options (Open in Browser, Create Branch, etc.)
+
+### Creating Git Branches
+
+1. Right-click a ticket → **Create Git Branch**
+2. Or use the Command Palette: `Create Git Branch`
+3. The extension will:
+   - Generate a branch name: `story/S-12345-ticket-title` or `defect/D-12345-description`
+   - Create and checkout the branch
+   - Optionally update the ticket status to "Dev in Progress"
+
+### Configuring Status Colors
+
+1. Select a team first (required to load statuses)
+2. Open the **Status Configuration** view
+3. Click a status to:
+   - **Change Color** — Pick from presets or enter a custom hex color
+   - **Set as Dev in Progress** — Mark this status for branch creation
+   - **Toggle Visibility** — Hide/show status groups in ticket views
 
 ## Development
 
-Clone the repo and install dependencies, then compile:
-
 ```powershell
+# Install dependencies
 npm install
+
+# Compile TypeScript
 npm run compile
-```
 
-During development you can run in watch mode:
-
-```powershell
+# Watch mode (auto-recompile on changes)
 npm run watch
-```
 
-To run the extension in the Extension Development Host (inside VS Code) use the built-in debug target (F5).
+# Run linter
+npm run lint
 
-### Tests
-
-Unit/e2e tests (if present) run via the `test` script which uses the VS Code test harness:
-
-```powershell
+# Run tests
 npm test
 ```
 
-## Packaging (create a .vsix)
+Press **F5** in VS Code to launch the Extension Development Host.
 
-Use `vsce` (or `npx @vscode/vsce`) to package the extension after compiling to `out/`:
+## Packaging
+
+Create a `.vsix` package for distribution:
 
 ```powershell
 npm run compile
 npx @vscode/vsce package
 ```
 
-This will produce a file like `agility-helper-0.0.1.vsix` based on `package.json` name/version.
+This produces `agility-helper-<version>.vsix`.
 
-If `npx @vscode/vsce package` fails with an error referencing `undici`/`File is not defined`, upgrade Node to a modern LTS (Node 18.15+ or Node 20.x) as the packager relies on newer Node web platform globals. See Troubleshooting below.
+> **Note**: Requires Node.js 18.15+ or 20.x. Older versions may fail with `File is not defined` errors.
 
-## Publishing to the Visual Studio Marketplace
+## Publishing to VS Marketplace
 
-1. Ensure `publisher` in `package.json` matches your Marketplace publisher ID (the project currently lists `"publisher": "Realize"`).
-2. Create or use an existing publisher on the Marketplace and generate a Personal Access Token (PAT) with the `Manage` and `Publish` scopes.
-3. Publish with `vsce`:
+1. Ensure `publisher` in `package.json` matches your Marketplace publisher ID
+2. Create a Personal Access Token (PAT) with `Manage` and `Publish` scopes
+3. Publish:
 
 ```powershell
-$env:VSCE_PAT = '<your-pat-here>'
+$env:VSCE_PAT = '<your-pat>'
 npx @vscode/vsce publish
 ```
 
-Or use `npx @vscode/vsce publish <patch|minor|major>` to bump the version automatically.
-
-Important: do not share your PAT publicly.
-
 ## Troubleshooting
 
-- Problem: `ReferenceError: File is not defined` when running `npx vsce package`.
-	- Cause: `undici` (used by the packager) expects Web `File` global; older Node versions may lack it.
-	- Fix: Upgrade Node to an LTS version (Node 18.15+ or Node 20.x) and retry:
+| Problem | Solution |
+|---------|----------|
+| `ReferenceError: File is not defined` when packaging | Upgrade Node.js to 18.15+ or 20.x |
+| `out/extension.js` missing | Run `npm run compile` and fix any TypeScript errors |
+| Tickets not loading | Verify `instanceUrl` and `accessToken` are correct |
+| Status colors not saving | Ensure you have a team selected first |
+| "No member selected" message | Run `Agility: Change Member` to select a team member |
 
-```powershell
-node -v
-# use nvm-windows or the official Node installer to upgrade
+## Project Structure
+
 ```
-
-- Problem: `out/extension.js` missing after compile
-	- Ensure TypeScript compiled successfully (`npm run compile`). Fix any TypeScript errors reported by the compiler.
+src/
+├── api/           # API services (tickets, members, teams, statuses)
+├── commands/      # Command handlers
+├── config/        # Configuration service
+├── constants/     # Color presets
+├── errors/        # Custom error classes
+├── models/        # TypeScript interfaces
+├── providers/     # Webview and tree providers
+├── utils/         # Shared utilities
+└── extension.ts   # Entry point
+```
 
 ## Contributing
 
-Contributions are welcome. Typical workflow:
-
-1. Fork the repo
+1. Fork the repository
 2. Create a feature branch
-3. Implement and test your change
-4. Open a Pull Request with a clear description
-
-Please follow the repository's existing code style and tests.
+3. Make your changes
+4. Run `npm run lint` and `npm run compile`
+5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License — see the `LICENSE` file for details.
+MIT — see [LICENSE](LICENSE) for details.
 
 ## Contact
 
-If you need help or want to report a bug, open an issue in this repository or email the maintainers.
-
----
-
-This README was generated to help you get the extension packaged, published, and used in VS Code. If you want, I can also add a short `CONTRIBUTING.md`, a release checklist, or automate the packaging step in `package.json`.
+Open an issue in this repository for bug reports or feature requests.

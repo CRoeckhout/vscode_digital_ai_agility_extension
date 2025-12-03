@@ -3,9 +3,13 @@
   "displayName": "Digital.ai Agility Helper",
   "description": "Manage Digital.ai Agility tickets from VS Code",
   "icon": "images/icon.png",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "license": "MIT",
   "publisher": "Realize",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CRoeckhout/vscode_digital_ai_agility_extension"
+  },
   "engines": {
     "vscode": "^1.104.0"
   },
@@ -13,7 +17,7 @@
     "Other"
   ],
   "activationEvents": [],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -47,7 +51,7 @@
           "contextualTitle": "Status Colors & Dev in Progress"
         }
       ]
-    }, 
+    },
     "commands": [
       {
         "command": "agility-helper.configure",
@@ -152,46 +156,55 @@
           ],
           "default": null,
           "description": "Persistently selected team member ID for the My Tickets view (do not edit unless you know the Member ID)"
-        }
-          ,
-          "agility.selectedTeam": {
-            "type": ["string", "null"],
-            "default": null,
-            "description": "Persistently selected Team ID for the Team Tickets view (enter the numeric Team OID part, e.g. 12345)"
-          },
-          "agility.statusConfig": {
+        },
+        "agility.selectedTeam": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Persistently selected Team ID for the Team Tickets view (enter the numeric Team OID part, e.g. 12345)"
+        },
+        "agility.statusConfig": {
+          "type": "object",
+          "default": {},
+          "description": "Configuration for status colors and Dev in Progress flag. Populated automatically when using 'Configure Status Colors' command.",
+          "additionalProperties": {
             "type": "object",
-            "default": {},
-            "description": "Configuration for status colors and Dev in Progress flag. Populated automatically when using 'Configure Status Colors' command.",
-            "additionalProperties": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "description": "The status ID"
-                },
-                "name": {
-                  "type": "string",
-                  "description": "The status name"
-                },
-                "color": {
-                  "type": "string",
-                  "description": "Hex color for this status (e.g., #1f77b4)",
-                  "pattern": "^#[0-9A-Fa-f]{6}$"
-                },
-                "isDevInProgress": {
-                  "type": "boolean",
-                  "description": "If true, this status is used when creating a branch"
-                }
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "The status ID"
               },
-              "required": ["id", "name", "color"]
-            }
-          },
-          "agility.devInProgressStatusId": {
-            "type": ["string", "null"],
-            "default": null,
-            "description": "Legacy: Status ID for 'Dev in Progress'. Prefer using 'Configure Status Colors' command instead."
+              "name": {
+                "type": "string",
+                "description": "The status name"
+              },
+              "color": {
+                "type": "string",
+                "description": "Hex color for this status (e.g., #1f77b4)",
+                "pattern": "^#[0-9A-Fa-f]{6}$"
+              },
+              "isDevInProgress": {
+                "type": "boolean",
+                "description": "If true, this status is used when creating a branch"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "color"
+            ]
           }
+        },
+        "agility.devInProgressStatusId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Legacy: Status ID for 'Dev in Progress'. Prefer using 'Configure Status Colors' command instead."
+        }
       }
     },
     "menus": {
@@ -262,10 +275,12 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
+    "vscode:prepublish": "npm run package",
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "package": "node esbuild.js --production",
+    "compile-tests": "tsc -p ./",
+    "pretest": "npm run compile-tests && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"
   },
@@ -277,6 +292,7 @@
     "@typescript-eslint/parser": "^8.39.0",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.27.0",
     "eslint": "^9.32.0",
     "typescript": "^5.9.2",
     "vsce": "^2.15.0"
