@@ -2,6 +2,18 @@
 
 A VS Code extension to manage Digital.ai Agility tickets directly from your editor. View your tickets, open ticket details, create Git branches, and configure status colors — all without leaving VS Code.
 
+## Roadmap
+
+  [X] Connect to On-premise Agility
+  [X] See the list of items / teams / users
+  [X] Item details view / Open in browser
+  [X] Automated Branch creation + Set to "Dev in progress"
+  [ ] Iteration filter
+  [ ] Team view (storyboard)
+  [ ] Full details view edition (description, status, owners, ...)
+  [ ] Automated "Review" Status
+
+
 ## Features
 
 ### Views (Activity Bar → Digital.ai Agility)
